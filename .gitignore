@@ -1,7 +1,8 @@
 .DS_Store
 front/node_modules
 front/dist
-
+node_modules
+dist
 DropApp.iml
 front/target
 server/target

@@ -1,0 +1,6 @@
+front/node_modules/
+front/target/
+server/target
+node_modules
+.git
+

@@ -1,0 +1,18 @@
+FROM node:14-alpine as builder
+MAINTAINER Younes Boukanoucha
+
+## Install build toolchain, install node deps and compile native add-ons
+RUN apk add --no-cache python make g++
+
+WORKDIR /app/
+
+COPY package.json ./
+
+RUN npm install
+
+COPY . .
+
+RUN npm run build
+
+
+ENTRYPOINT ["npm","run","serve"]
