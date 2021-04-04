@@ -1,0 +1,16 @@
+I- Front:
+    1- app architecture (divided on two part aside menu and body)
+    2- aside menu :
+        - create new space button
+        - spaces as trees
+    3- body :
+        - hello page with create space button
+        - top menu with buttons
+    4- tabs :
+        - tab with files and folders grid
+        - tab with file content for read/write mode
+II- Api:
+    1- CRUD Spaces
+    2- CRUD Content
+    3- CRUD users
+    4- CRUD versions

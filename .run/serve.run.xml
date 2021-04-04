@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="serve" type="js.build_tools.npm" nameIsGenerated="true">
+    <package-json value="$PROJECT_DIR$/front/package.json" />
+    <command value="run" />
+    <scripts>
+      <script value="serve" />
+    </scripts>
+    <node-interpreter value="project" />
+    <envs>
+      <env name="SERVER_API" value="http://localhost:8090" />
+      <env name="DEV_PORT" value="8089" />
+    </envs>
+    <method v="2" />
+  </configuration>
+</component>
