@@ -1,4 +1,4 @@
-#FROM front:latest AS FRONT_IMAGE
+FROM front:latest AS FRONT_IMAGE
 
 FROM maven:3.5.2-jdk-8-alpine AS MAVEN_BUILD
 
@@ -19,7 +19,7 @@ WORKDIR /app/
 COPY . .
 
 # copy target from front image
-#COPY --from=FRONT_IMAGE /app/target /app/front/target
+COPY --from=FRONT_IMAGE /app/target /app/front/target
 
 # build for release
 RUN mvn package

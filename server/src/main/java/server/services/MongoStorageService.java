@@ -22,9 +22,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.logging.Logger;
+
+import static java.util.logging.Level.*;
 
 @Service
 public class MongoStorageService implements IStorageService {
+
+    private final Logger logger = Logger.getLogger(MongoStorageService.class.getName());
 
    @Autowired
    private GridFsTemplate gridFsTemplate;
@@ -42,7 +47,7 @@ public class MongoStorageService implements IStorageService {
             ObjectId id = gridFsTemplate.store(file.getInputStream(), file.getName(), file.getContentType(), metaData);
             return id.toString();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(SEVERE, String.format("Could not store file in DB %s %n", file.getOriginalFilename()));
             throw new FileStorageException("Could not store file " + file.getOriginalFilename()
                     + ". Please try again!");
         }
@@ -58,7 +63,7 @@ public class MongoStorageService implements IStorageService {
             Files.copy(file.getInputStream(), copyLocation, StandardCopyOption.REPLACE_EXISTING);
             return copyLocation.toString();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.log(SEVERE, String.format("Could not store file locally %s %n", file.getOriginalFilename()));
             throw new FileStorageException("Could not store file " + file.getOriginalFilename()
                     + ". Please try again!");
         }
@@ -67,13 +72,17 @@ public class MongoStorageService implements IStorageService {
     @Override
     public FileDocument getFile(String id){
         GridFSFile file = gridFsTemplate.findOne(new Query(Criteria.where("_id").is(id)));
+        if(file==null){
+            logger.log(SEVERE, String.format("Could not found file with id %s %n", id));
+            throw new FileStorageException("Could not get file " + id );
+        }
         FileDocument fileDocument = new FileDocument();
         try {
             fileDocument.setTitle(file.getMetadata().get("title").toString());
             fileDocument.setStream(operations.getResource(file).getInputStream());
             return fileDocument;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.log(SEVERE, String.format("Could not get file content %s %n", id));
             throw new FileStorageException("Could not get file " + id );
         }
     }
