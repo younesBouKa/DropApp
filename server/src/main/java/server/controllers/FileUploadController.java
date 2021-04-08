@@ -7,7 +7,10 @@ import org.springframework.web.multipart.MultipartFile;
 import server.data.FileDocument;
 import server.services.IStorageService;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.util.HashMap;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
@@ -28,9 +31,18 @@ public class FileUploadController {
     IStorageService fileService ;
 
     @PostMapping("/uploadFile")
-    public String uploadFile(MultipartFile file) {
+    public String uploadFile(MultipartFile file, HttpServletRequest request) {
+        HttpSession session = request.getSession();
         logger.log(INFO, String.format("upload file %s %n", file.getResource().getFilename()));
-        return fileService.storeDB(file);
+        HashMap uploadedFiles = (HashMap) session.getAttribute("uploadedFiles");
+        if (uploadedFiles == null) {
+            uploadedFiles = new HashMap<String,String>();
+        }
+        String storedFileId = fileService.storeDB(file);
+        uploadedFiles.put(storedFileId,file.getResource().getFilename());
+        logger.log(INFO, String.format("session id: %s, isNew: %b  uploaded files : %n %s %n",session.getId(), session.isNew(), uploadedFiles.toString()));
+        session.setAttribute("uploadedFiles", uploadedFiles);
+        return storedFileId;
     }
 
     @GetMapping("/stream/{file_id}")
