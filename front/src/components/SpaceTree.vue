@@ -3,13 +3,13 @@
         <el-input
                 clearable
                 prefix-icon="el-icon-search"
-                small
+                mini
                 placeholder="Filter keyword"
                 v-model="filterText">
         </el-input>
         <el-tree
                 :data="data"
-                :empty-text="'No Spaces'"
+                :empty-text="'No Files'"
                 :filter-node-method="filterNode"
                 :props="defaultProps"
                 @node-click="handleNodeClick"
@@ -25,16 +25,23 @@
                 show-checkbox
         >
             <span class="custom-tree-node" slot-scope="{ node, data }">
-                <span>{{ node.label }}</span>
-                <span>
-                  *
-                </span>
+                 <el-tooltip  placement="right" effect="light">
+                     <div slot="content">Here we put <br/>node description</div>
+                     <span>
+                            <i
+                                    :class="data.folder ? 'el-icon-folder-opened' : 'el-icon-document'"
+                            >
+                            </i>
+                            {{ node.label }}
+                     </span>
+                </el-tooltip>
           </span>
         </el-tree>
     </div>
 </template>
 
 <script>
+    import { mapActions } from 'vuex'
     export default {
         name: "SpaceTree",
         props: {
@@ -43,48 +50,10 @@
         data() {
             return {
                 filterText: "",
-                data: [
-                    {
-                        label: 'Niveau un 1',
-                        children: [{
-                            label: 'Niveau deux 1-1',
-                            children: [{
-                                label: 'Niveau trois 1-1-1'
-                            }]
-                        }]
-                    },
-                    {
-                        label: 'Niveau un 2',
-                        children: [{
-                            label: 'Niveau deux 2-1',
-                            children: [{
-                                label: 'Niveau trois 2-1-1'
-                            }]
-                        }, {
-                            label: 'Niveau deux 2-2',
-                            children: [{
-                                label: 'Niveau trois 2-2-1'
-                            }]
-                        }]
-                    },
-                    {
-                        label: 'Niveau un 3',
-                        children: [{
-                            label: 'Niveau deux 3-1',
-                            children: [{
-                                label: 'Niveau trois 3-1-1'
-                            }]
-                        }, {
-                            label: 'Niveau deux 3-2',
-                            children: [{
-                                label: 'Niveau trois 3-2-1'
-                            }]
-                        }]
-                    }
-                ],
+                data: [],
                 defaultProps: {
                     children: 'children',
-                    label: 'label'
+                    label: 'name'
                 }
             }
         },
@@ -94,7 +63,22 @@
                 this.$refs.tree.filter(val);
             }
         },
+        mounted() {
+            this.getNodeByPath("/")
+                .then(data=>{
+                    console.log(data);
+                    this.data.push(data);
+                }).catch(err=>{
+                    console.error(err);
+                })
+        },
         methods: {
+            ...mapActions([
+                'getNodeById',
+                'getNodeByPath',
+                'getNodesByParentPath',
+                'getNodesByParentId',
+            ]),
             append(data) {
                 const newChild = { id: id++, label: 'testtest', children: [] };
                 if (!data.children) {
@@ -111,28 +95,21 @@
             filterNode(value, data, node) {
                 console.log(`filterNode : `,value,data);
                 if (!value) return true;
-                return data.label.indexOf(value) !== -1;
+                return data[this.defaultProps.label].toLowerCase().indexOf(value) !== -1;
             },
             handleNodeClick(node) {
                 console.log(`node clicked : `,node);
             },
             loadNode(node, resolve) {
                 console.log(`loadNode: `,node);
-                if (node.level === 0) {
-                    return resolve([{ label: 'region' }]);
-                }
-                if (node.level > 1) return resolve([]);
-
-                setTimeout(() => {
-                    const data = [{
-                        label: 'leaf',
-                        leaf: true
-                    }, {
-                        label: 'zone'
-                    }];
-
-                    resolve(data);
-                }, 500);
+                this.getNodesByParentId(node.data.id)
+                    .then(nodes=>{
+                        console.log(nodes);
+                        resolve(nodes);
+                    })
+                    .catch(err=>{
+                        resolve([]);
+                    });
             },
             onCheck(node, status) {
                 /*
@@ -172,5 +149,14 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-
+    .slide-fade-enter-active {
+        transition: all .3s ease;
+    }
+    .slide-fade-leave-active {
+        transition: all .3s cubic-bezier(1.0, 0.5, 0.8, 1.0);
+    }
+    .slide-fade-enter, .expand-fade-leave-active {
+        margin-left: 20px;
+        opacity: 0;
+    }
 </style>

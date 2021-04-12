@@ -6,10 +6,7 @@
       <script value="serve" />
     </scripts>
     <node-interpreter value="project" />
-    <envs>
-      <env name="SERVER_API" value="http://localhost:8090" />
-      <env name="DEV_PORT" value="8089" />
-    </envs>
+    <envs />
     <method v="2" />
   </configuration>
 </component>

@@ -2,6 +2,7 @@
     <el-upload
             class="upload-demo"
             drag
+            :data="data"
             :action="uploadUrl"
             :on-preview="handlePreview"
             :on-remove="handleRemove"
@@ -24,8 +25,9 @@
         },
         data() {
             return {
-                uploadUrl : "/api/v0/files/uploadFile",
-                fileList: []
+                uploadUrl : "/api/file/uploadFile",
+                fileList: [],
+                data : {"toto":"test"}
             }
         },
         methods: {
@@ -58,18 +60,6 @@
             }
         },
         mounted() {
-            /*fetch("/api/greeting")
-                .then(response => response.json())
-                .then((response) => {
-                    this.$notify({
-                        title: 'Success',
-                        message: 'Ceci est un message de succès ' + JSON.stringify(response),
-                        type: 'success'
-                    });
-                })
-                .catch(function(err) {
-                    console.log('Fetch Error :-S', err);
-                });;*/
         }
     }
 </script>
