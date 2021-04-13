@@ -4,6 +4,7 @@ import router from './router'
 import store from './store'
 import ElementUI from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
+import EventBus from './event-bus';
 
 import {
   Pagination,
@@ -168,7 +169,7 @@ Vue.prototype.$confirm = MessageBox.confirm;
 Vue.prototype.$prompt = MessageBox.prompt;
 Vue.prototype.$notify = Notification;
 Vue.prototype.$message = Message;
-
+Vue.prototype.$bus = EventBus;
 
 Vue.use(ElementUI);
 Vue.config.productionTip = false

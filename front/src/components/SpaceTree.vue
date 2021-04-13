@@ -1,13 +1,15 @@
 <template>
-    <div>
+    <div style="height: 100%">
         <el-input
+                class="search_input mini"
                 clearable
+                size="small"
                 prefix-icon="el-icon-search"
-                mini
-                placeholder="Filter keyword"
+                placeholder="Search .."
                 v-model="filterText">
         </el-input>
         <el-tree
+                class="tree"
                 :data="data"
                 :empty-text="'No Files'"
                 :filter-node-method="filterNode"
@@ -27,7 +29,7 @@
             <span class="custom-tree-node" slot-scope="{ node, data }">
                  <el-tooltip  placement="right" effect="light">
                      <div slot="content">Here we put <br/>node description</div>
-                     <span>
+                     <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis !important;">
                             <i
                                     :class="data.folder ? 'el-icon-folder-opened' : 'el-icon-document'"
                             >
@@ -64,13 +66,11 @@
             }
         },
         mounted() {
-            this.getNodeByPath("/")
-                .then(data=>{
-                    console.log(data);
-                    this.data.push(data);
-                }).catch(err=>{
-                    console.error(err);
-                })
+            this.getRootFolder();
+            let self = this;
+            this.$bus.$on("file_uploaded", function (payLoad) {
+                self.getRootFolder();
+            });
         },
         methods: {
             ...mapActions([
@@ -79,6 +79,16 @@
                 'getNodesByParentPath',
                 'getNodesByParentId',
             ]),
+            getRootFolder(){
+                this.data = [];
+                this.getNodeByPath("/")
+                    .then(data=>{
+                        console.log(data);
+                        this.data.push(data);
+                    }).catch(err=>{
+                    console.error(err);
+                });
+            },
             append(data) {
                 const newChild = { id: id++, label: 'testtest', children: [] };
                 if (!data.children) {
@@ -99,6 +109,7 @@
             },
             handleNodeClick(node) {
                 console.log(`node clicked : `,node);
+                this.$store.commit("storeCurrentNode",node);
             },
             loadNode(node, resolve) {
                 console.log(`loadNode: `,node);
@@ -149,14 +160,14 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-    .slide-fade-enter-active {
-        transition: all .3s ease;
+    .search_input{
+        height: 35px;
+        margin-bottom: 5px;
     }
-    .slide-fade-leave-active {
-        transition: all .3s cubic-bezier(1.0, 0.5, 0.8, 1.0);
-    }
-    .slide-fade-enter, .expand-fade-leave-active {
-        margin-left: 20px;
-        opacity: 0;
+
+    .tree{
+        height: calc(100% - 40px);
+        padding-bottom: 10px;
+        overflow: auto;
     }
 </style>
