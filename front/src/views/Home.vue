@@ -15,7 +15,7 @@
                         </el-dropdown-menu>
                     </el-dropdown>-->
                     <div class="header-buttons">
-                        <el-button size="mini" @click="enableUpload=true" type="success" style="margin-right: 15px" icon="el-icon-upload" circle></el-button>
+                        <el-button size="mini" @click="enableUpload=!enableUpload" :type="!enableUpload? 'success' : 'warning'" style="margin-right: 15px" icon="el-icon-upload" circle></el-button>
                         <el-avatar icon="el-icon-user-solid" size="small"></el-avatar>
                     </div>
                 </el-header>

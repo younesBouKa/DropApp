@@ -37,11 +37,35 @@ export default new Vuex.Store({
         user: {},
         currentNode: {},
         token: "",
+        permissionOptions : {
+            "read":{
+                icon : "el-icon-view",
+                label : "Read",
+                type : "primary"
+            },
+            "write":{
+                icon : "el-icon-edit",
+                label : "Write",
+                type : "success"
+            },
+            "none":{
+                icon : "el-icon-circle-close",
+                label : "None",
+                type : "danger"
+            },
+        },
+        sortByFoldersFirst : (a,b)=> a.type===b.type ? 0 : (a.type==="FOLDER" ? -1 : 1),
     },
     getters: {
         getCurrentNode : (state, getters) =>{
             return state.currentNode;
         },
+        getPermissionOptions : (state, getters) =>{
+            return state.permissionOptions;
+        },
+        getSortByFolderFirst : (state, getters) => {
+            return state.sortByFoldersFirst;
+        }
     },
     mutations: {
         storeCurrentNode(state, params) {

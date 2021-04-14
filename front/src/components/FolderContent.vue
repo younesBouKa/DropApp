@@ -40,20 +40,15 @@
                         field : "name",
                         label : "Name",
                     },
-
                     {
                         field : "createDate",
                         label : "Date de creation",
                     },
                     {
-                        field : "type",
-                        label : "Type",
-                        width : "100"
-                    },
-                    {
                         field : "permission",
                         label : "Permission",
-                    }
+                    },
+                    "type"
                 ]
             }
         },
@@ -71,7 +66,8 @@
                return this.isSelectedNodeFolder && this.data.length===0;
             },
             canUploadFileInFolder(){
-                return !this.isSelectedNodeFolder ||  this.isFolderEmpty || this.enableUpload;
+                return this.isFolderEmpty
+                    || this.enableUpload;
             },
            /* ...mapGetters({
                 selectedNode:"getCurrentNode"
