@@ -1,26 +1,33 @@
 <template>
     <div class="block">
         <el-card shadow="hover">
-            {{node.name}}
+            <el-row>
+                <i :class="node.type==='FILE' ? 'el-icon-document' : 'el-icon-folder'"></i>
+                <el-col>
+                    <el-link :underline="false"
+                             @click="setCurrentNode(node)"
+                             style="cursor: pointer; margin-left: 10px;"
+                             disable-transitions>
+                        {{node.name}}
+                    </el-link>
+                </el-col>
+            </el-row>
         </el-card>
     </div>
 </template>
 
 <script>
     import {mapActions, mapGetters} from 'vuex'
+
     const _ = require('lodash');
     export default {
         name: "NodeCard",
-        components :{
-        },
+        components: {},
         props: {
             node: Object
         },
         data() {
             return {
-                squareUrl : "https://cube.elemecdn.com/9/c2/f0ee8a3c7c9638a54940382568c9dpng.png",
-                filterText: "",
-                data: [],
                 defaultProps: {
                     children: 'children',
                     label: 'name'
@@ -28,13 +35,11 @@
             }
         },
         computed: {
-           /* ...mapGetters({
-                selectedNode:"getCurrentNode"
-            }),*/
+            /* ...mapGetters({
+                 selectedNode:"getCurrentNode"
+             }),*/
         },
-        watch: {
-
-        },
+        watch: {},
         mounted() {
 
         },
@@ -42,11 +47,31 @@
             ...mapActions({
                 getNodesByParentId: 'getNodesByParentId',
             }),
+            setCurrentNode(row) {
+                this.$store.commit("storeCurrentNode", row);
+            },
         }
     }
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+    .block {
+        padding: 10px;
+    }
 
+    .el-card >>> .el-card__body{
+        padding: 17px 5px 15px 10px;
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .el-link >>> i{
+        font-size: 20px;
+    }
+
+    .el-row{
+        display: flex;
+        flex-direction: row;
+    }
 </style>

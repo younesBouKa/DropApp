@@ -62,7 +62,7 @@
                         this.data.parentId = this.selectedNode.id;
                     else
                         this.data.parentId = this.selectedNode.parentId;
-                    this.$confirm(`Upload file : ${file.name} ?`, "Warning", {
+                    this.$confirm(`Upload file : '${file.name}' ?`, "Warning", {
                         confirmButtonText: 'OK',
                         cancelButtonText: 'Annuler',
                         type: 'warning'
@@ -88,10 +88,10 @@
                 console.log(`handlePreview :`,file);
             },
             handleExceed(files, fileList) {
-                this.$message.warning(`La limite est 3, vous avez choisi ${files.length} fichiers, soit ${files.length + fileList.length} au total.`);
+                this.$message.warning(`La limite est 3, vous avez choisi '${files.length}' fichiers, soit ${files.length + fileList.length} au total.`);
             },
             beforeRemove(file, fileList) {
-                return this.$confirm(`Supprimer le transfert de ${file.name} ?`,'Warning', {
+                return this.$confirm(`Supprimer le transfert de '${file.name}' ?`,'Warning', {
                     confirmButtonText: 'OK',
                     cancelButtonText: 'Annuler',
                     type: 'warning'
@@ -104,6 +104,10 @@
                 console.log(`onSuccess :`,response,file,fileList);
                 if(this.loading)
                     this.loading.close();
+                this.$message({
+                    message: 'Fichier "'+response.name+'" téléchargé avec  success.',
+                    type: 'success'
+                });
                 this.$bus.$emit("file_uploaded",response);
             },
             onError(err, file, fileList){

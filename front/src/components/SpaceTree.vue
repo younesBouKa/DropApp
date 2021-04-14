@@ -1,12 +1,11 @@
 <template>
     <div style="height: 100%">
         <el-row class="top_buttons">
-            <el-button @click="dialogVisible = true" size="mini" type="primary" icon="el-icon-circle-plus" title="Add new space" circle></el-button>
+            <el-button @click="openCreateFolderDialog" size="mini" type="primary" icon="el-icon-circle-plus" title="Add new space" circle></el-button>
             <el-button size="mini" type="info" icon="el-icon-more" title="Expand more" circle></el-button>
-            <el-button size="mini" type="success" icon="el-icon-refresh-right" title="Refresh" circle></el-button>
-            <el-button size="mini" type="warning" icon="el-icon-search" title="Deep search in current folder"
-                       circle></el-button>
-            <el-button size="mini" type="danger" icon="el-icon-delete" title="Delete Selected nodes" circle></el-button>
+            <el-button @click="refreshTree" size="mini" type="success" icon="el-icon-refresh-right" title="Refresh" circle></el-button>
+            <el-button size="mini" type="warning" icon="el-icon-search" title="Deep search in current folder" circle></el-button>
+            <el-button @click="deleteCurrentNode" size="mini" type="danger" icon="el-icon-delete" title="Delete Selected nodes" circle></el-button>
         </el-row>
         <el-input
                 class="search_input mini"
@@ -50,18 +49,6 @@
                 </el-tooltip>
           </span>
         </el-tree>
-
-        <el-dialog
-                title="Create new Folder"
-                :visible.sync="dialogVisible"
-                width="30%"
-                :before-close="handleCloseFolderCreationDialog">
-            <span>Ceci est un message</span>
-            <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">Annuler</el-button>
-                <el-button type="primary" @click="dialogVisible = false">Confirmer</el-button>
-            </span>
-        </el-dialog>
     </div>
 </template>
 
@@ -75,9 +62,9 @@
         },
         data() {
             return {
-                dialogVisible: false,
                 filterText: "",
                 data: [],
+                rootFolder: {},
                 defaultProps: {
                     children: 'children',
                     label: 'name',
@@ -111,29 +98,72 @@
             this.$bus.$on("file_uploaded", function (payLoad) {
                 self.getRootFolder();
             });
+            this.$bus.$on("folder_created", function (payLoad) {
+                self.$refs.tree.append(payLoad, payLoad.parentId);
+            });
         },
         methods: {
             ...mapActions([
-                'getNodeById',
                 'getNodeByPath',
-                'getNodesByParentPath',
+                'deleteNodeById',
                 'getNodesByParentId',
+                'createFolderNodeWithMetaData',
             ]),
-            handleCloseFolderCreationDialog(done){
-                console.log("handleCloseFolderCreationDialog", done);
-                done();
+            openCreateFolderDialog(){
+                this.$bus.$emit("create_folder",undefined);
+            },
+            refreshTree(){
+                let selectedNode = this.currentNode;
+                let self = this;
+                this.getRootFolder().then(parent=>{
+                    self.defaultExpandedKeys.push(selectedNode.id);
+                });
+            },
+            deleteCurrentNode(){
+                let self = this;
+                this.$confirm(`Voulez vous supprimer '${this.currentNode.name}' ?`,'Warning', {
+                    confirmButtonText: 'OK',
+                    cancelButtonText: 'Annuler',
+                    type: 'warning'
+                })
+                    .then(yes=>{
+                        self.deleteNodeById(self.currentNode.id,true)
+                            .then(count=>{
+                                console.log(count);
+                                this.$message({
+                                    message: `'${this.currentNode.name}' supprimé avec succes`,
+                                    type: 'success'
+                                });
+                                self.$bus.$emit("node_deleted",self.currentNode);
+                                self.$store.commit("storeCurrentNode",{});
+                                self.refreshTree();
+                            })
+                            .catch(error=>{
+                                console.error(error);
+                                this.$message({
+                                    message: error,
+                                    type: 'error'
+                                });
+                            })
+                    });
             },
             getRootFolder() {
                 this.data = [];
-                this.getNodeByPath("/")
-                    .then(data => {
-                        console.log(data);
-                        if (data) {
-                            this.data.push(data);
-                            this.$store.commit("storeCurrentNode", this.data[0]);
-                        }
-                    }).catch(err => {
-                    console.error(err);
+                let self = this;
+                return new Promise((resolve, reject) => {
+                    self.getNodeByPath("/")
+                        .then(data => {
+                            console.log(data);
+                            if (data) {
+                                self.rootFolder = data;
+                                self.data.push(data);
+                                self.$store.commit("storeCurrentNode", self.data[0]);
+                            }
+                            resolve(data);
+                        }).catch(err => {
+                            console.error(err);
+                            reject(err);
+                        });
                 });
             },
             append(data) {
@@ -210,31 +240,11 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-    .search_input {
-        height: 30px;
-        margin-bottom: 5px;
-    }
-
-    .search_input >>> input, .search_input >>> i {
-        height: 24px !important;
-        line-height: 24px !important;
-    }
-
-    .tree {
-        height: calc(100% - 35px);
-        padding-bottom: 10px;
-        overflow: auto;
-    }
-
-    .custom-tree-node{
-        font-size: 10px;
-    }
-
     .top_buttons {
         display: flex;
         height: 30px !important;
-        justify-content: flex-end;
-        padding: 5px 10px;
+        justify-content: start;
+        padding: 5px 3px;
         background-color: #eaedf2;
         margin-bottom: 2px;
         border-radius: 2px;
@@ -246,5 +256,28 @@
 
     .top_buttons >>> button {
         padding: 4px;
+    }
+    .search_input {
+        height: 30px;
+        margin-bottom: 5px;
+    }
+
+    .search_input >>> input, .search_input >>> i {
+        height: 24px !important;
+        line-height: 24px !important;
+    }
+
+    .tree {
+        height: calc(100% - 60px);
+        padding-bottom: 10px;
+        overflow: auto;
+    }
+
+    .custom-tree-node{
+        font-size: 10px;
+    }
+
+    .custom-tree-node >>> .el-tree--highlight-current .el-tree-node.is-current > .el-tree-node__content {
+        background-color: #e3effd;
     }
 </style>

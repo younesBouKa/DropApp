@@ -184,7 +184,7 @@ public class NodeService {
             parentNode = createFolderFromPath((String) metaData.get("path"));
         if(parentNode==null)
             parentNode = getRoot();
-        Permission permission = (Permission) metaData.getOrDefault("permission",parentNode.getPermission());
+        Permission permission = Permission.getFrom(metaData.getOrDefault("permission",parentNode.getPermission()));
         String path = parentNode.getPath();
         String name = (String)metaData.getOrDefault("name","folder_"+new Date().getTime());
         path = concatTwoPaths(path, name);

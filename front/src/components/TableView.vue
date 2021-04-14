@@ -7,15 +7,20 @@
                 @row-dblclick="rowDblClick"
                 @row-contextmenu="rowCtxMenu"
                 @row-click="rowClick"
+                @selection-change="handleSelectionChange"
                 :empty-text="'Empty'"
                 :row-class-name="'custom-row'"
+                :header-row-class-name="'custom-header-row'"
                 style="width: 100%">
+            <el-table-column
+                    type="selection"
+                    width="55">
+            </el-table-column>
             <el-table-column
                     v-for="(column,index) in dataColumns"
                     :prop="column.field"
                     :label="column.label"
                     sortable
-                    :formatter="formater"
                     :label-class-name="'col_header'"
                     :show-overflow-tooltip="true"
                     :column-key="column.field"
@@ -30,7 +35,7 @@
                             disable-transitions>
                         <i :class="per.icon"></i>
                     </el-tag>
-                    <el-link v-else-if="scope.column.property==='name'"
+                    <el-link v-if="scope.column.property==='name'"
                              :underline="false"
                              style="cursor: pointer;"
                              :icon="scope.row.type==='FILE' ? 'el-icon-document' : 'el-icon-folder'"
@@ -38,10 +43,12 @@
                              disable-transitions>{{scope.row.name}}
                     </el-link>
                     <span v-else-if="scope.column.property==='createDate'">
-                        <i class="el-icon-date"></i>
+                        <i class="el-icon-time"></i>
                         {{new Date(scope.row.createDate).toLocaleDateString()}}
                     </span>
-                    <span v-else>{{scope.row[scope.column.property]}}</span>
+                    <span v-else-if="scope.column.property!=='permission'">
+                        {{scope.row[scope.column.property]}}
+                    </span>
                 </template>
             </el-table-column>
         </el-table>
@@ -49,14 +56,12 @@
 </template>
 
 <script>
-    import {mapActions, mapGetters} from 'vuex'
-    import NodeCard from '@/components/NodeCard.vue'
+    import {mapActions} from 'vuex'
 
     const _ = require('lodash');
     export default {
         name: "TableView",
         components: {
-            NodeCard,
         },
         props: {
             rows: {
@@ -70,6 +75,7 @@
         },
         data() {
             return {
+                selectedRows : [],
                 defaultProps: {
                     children: 'children',
                     label: 'name'
@@ -87,7 +93,7 @@
                 let rows = this.rows;
                 // build permissions
                 rows = rows.map(node => {
-                    if (typeof node.permission === "String") {
+                    if (typeof node.permission === "string") {
                         let permissions = node.permission.split("_");
                         node.permission = [];
                         permissions.forEach(per => {
@@ -97,7 +103,7 @@
                         })
                     }
                     return node;
-                })
+                });
                 // sort
                 return rows.sort(this.sortByFolderFirst);
             },
@@ -107,7 +113,7 @@
                     : (this.rows.length > 0 ? Object.keys(this.rows[0]) : []);
                 return cols.map((oldCol, index) => {
                     let col = {};
-                    if (typeof oldCol === "String" || !oldCol.hasOwnProperty("field"))
+                    if (typeof oldCol === "string" || !oldCol.hasOwnProperty("field"))
                         col.field = oldCol;
                     else
                         col = oldCol;
@@ -129,8 +135,8 @@
             ...mapActions({
                 getNodesByParentId: 'getNodesByParentId',
             }),
-            formater(row, column, cellValue, index) {
-                return cellValue + "sdsd";
+            handleSelectionChange(val) {
+                this.selectedRows = val;
             },
             filterHandler(value, row, column) {
                 const property = column['property'];
@@ -181,6 +187,10 @@
     }
 
     .el-table >>> .custom-row {
+        height: 30px; /* .el-table >>> td {padding} */
+    }
+
+    .el-table >>> .custom-header-row {
         height: 30px; /* .el-table >>> td {padding} */
     }
 </style>

@@ -6,16 +6,7 @@
             </el-aside>
             <el-container style="margin-left: 5px;">
                 <el-header >
-                   <!-- <el-dropdown>
-                        <i class="el-icon-setting" size="mini" style="margin-right: 15px"></i>
-                        <el-dropdown-menu slot="dropdown">
-                            <el-dropdown-item>View</el-dropdown-item>
-                            <el-dropdown-item>Add</el-dropdown-item>
-                            <el-dropdown-item>Delete</el-dropdown-item>
-                        </el-dropdown-menu>
-                    </el-dropdown>-->
                     <div class="header-buttons">
-                        <el-button size="mini" @click="enableUpload=!enableUpload" :type="!enableUpload? 'success' : 'warning'" style="margin-right: 15px" icon="el-icon-upload" circle></el-button>
                         <el-avatar icon="el-icon-user-solid" size="small"></el-avatar>
                     </div>
                 </el-header>
@@ -25,6 +16,7 @@
                 </el-main>
             </el-container>
         </el-container>
+        <CreateFolderDialog></CreateFolderDialog>
     </div>
 </template>
 
@@ -33,6 +25,7 @@
     import UploadFiles from '@/components/UploadFiles.vue'
     import SpaceTree from '@/components/SpaceTree.vue'
     import FolderContent from '@/components/FolderContent.vue'
+    import CreateFolderDialog from '@/components/CreateFolderDialog.vue'
 
     import { mapActions,mapGetters } from 'vuex'
     export default {
@@ -40,7 +33,8 @@
         components: {
             UploadFiles,
             SpaceTree,
-            FolderContent
+            FolderContent,
+            CreateFolderDialog
         },
         data() {
             return {
@@ -83,6 +77,9 @@
     }
 
     .el-header{
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
         padding: 0 10px;
         line-height: 40px !important;
         height: 40px !important;
@@ -96,7 +93,7 @@
         display: flex;
         flex-direction: row;
         justify-content: flex-end;
-        height: auto;
+        height: 28px;
         margin-top: 5px;
     }
 
