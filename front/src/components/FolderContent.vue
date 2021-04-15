@@ -1,22 +1,27 @@
 <template>
     <div style="height: 100%">
         <el-row class="top-row">
-            <el-col>
+            <el-col style="text-align: left;">
                 <el-breadcrumb separator="/">
                     <el-breadcrumb-item
                             v-for="folder in pathFolders"
-                            @click="setCurrentNode(folder)"
+                            :disabled="!folder.id"
+                            @click.native="setCurrentFolder(folder)"
                     >
-                        {{folder}}
+                        {{folder.name}}
                     </el-breadcrumb-item>
                 </el-breadcrumb>
             </el-col>
             <el-col class="folder_buttons_set">
                 <div>
-                    <el-button @click="isListView=!isListView" size="mini"  :icon="isListView?'el-icon-files':'el-icon-s-grid'" title="Switch views" circle></el-button>
-                    <el-button @click="openCreateFolderDialog" size="mini" type="primary" icon="el-icon-circle-plus" title="Create folder" circle></el-button>
                     <el-button @click="enableUpload=!enableUpload" size="mini" :type="!enableUpload? 'success' : 'warning'" icon="el-icon-upload" title="Upload file" circle></el-button>
-                    <el-button  disabled size="mini" type="danger" icon="el-icon-delete" title="Delete Selected nodes" circle></el-button>
+                    <el-button @click="openCreateFolderDialog" type="primary" size="mini" icon="el-icon-folder-add" title="Create folder" circle></el-button>
+                    <el-divider direction="vertical"></el-divider>
+                    <el-button @click="moveNodes" disabled size="mini" type="warning" icon="el-icon-back" title="Deplacer" circle></el-button>
+                    <el-button @click="copyNodes" disabled size="mini" type="info" icon="el-icon-document-copy" title="Copier" circle></el-button>
+                    <el-button @click="deleteNodes" :disabled="selectedNodes.length===0" size="mini" type="danger" icon="el-icon-delete" title="Delete Selected nodes" circle></el-button>
+                    <el-divider direction="vertical"></el-divider>
+                    <el-button @click="isListView=!isListView" size="mini"  :icon="isListView?'el-icon-files':'el-icon-s-grid'" title="Switch views" circle></el-button>
                     <el-button @click="loadFolderContent" size="mini" type="info" icon="el-icon-refresh-right" title="Refresh" circle></el-button>
                     <el-button size="mini" type="warning" icon="el-icon-search" title="Search" circle></el-button>
                 </div>
@@ -24,8 +29,11 @@
         </el-row>
         <el-row class="content" >
             <UploadFiles v-if="canUploadFileInFolder"></UploadFiles>
-            <TableView v-else-if="isListView && isSelectedNodeFolder" :rows="data" :columns="columnsToShow"></TableView>
-            <CardsView v-else-if="isSelectedNodeFolder" :data="dataRows"></CardsView>
+            <TableView v-else-if="isListView && isCurrentNodeFolder" @selectionChanged="selectionChanged" :rows="data" :columns="columnsToShow"></TableView>
+            <CardsView v-else-if="isCurrentNodeFolder" @selectionChanged="selectionChanged" :data="dataRows"></CardsView>
+        </el-row>
+        <el-row class="footer-row">
+
         </el-row>
     </div>
 </template>
@@ -44,13 +52,17 @@
             TableView
         },
         props: {
-            folderId: String,
+            folderId: {
+                type: String,
+                default: ()=> undefined
+            },
         },
         data() {
             return {
                 isListView : false,
                 enableUpload : false,
                 data: [],
+                selectedNodes : [],
                 defaultProps: {
                     children: 'children',
                     label: 'name'
@@ -73,17 +85,14 @@
             }
         },
         computed: {
-            selectedNode(){
-                return this.$store.getters.getCurrentNode;
+            currentNodeData(){
+                return this.$store.getters.getCurrentNodeData;
             },
-            pathFolders(){
-                return this.selectedNode &&  this.selectedNode.path ? this.selectedNode.path.split("/") : [] ;
-            },
-            isSelectedNodeFolder(){
-               return this.selectedNode.folder;
+            isCurrentNodeFolder(){
+               return this.currentNodeData.folder;
             },
             isFolderEmpty(){
-               return this.isSelectedNodeFolder && this.data.length===0;
+               return this.isCurrentNodeFolder && this.data.length===0;
             },
             canUploadFileInFolder(){
                 return this.enableUpload //|| this.isFolderEmpty;
@@ -112,53 +121,144 @@
                 // sort
                 return rows.sort(this.sortByFolderFirst);
             },
+            currentNodeElement(){
+                return this.$store.getters.getCurrentNodeElement;
+            },
+            pathFolders(){
+                let allParents = [];
+                if(this.currentNodeElement
+                    && this.currentNodeElement.parent
+                    && this.currentNodeData.id===this.currentNodeElement.data.id
+                ){
+                    let parent = this.currentNodeElement;
+                    while (parent.parent){
+                        let data = parent.data;
+                        allParents.push(data);
+                        parent = parent.parent;
+                    }
+                    allParents.reverse();
+                }else if(this.currentNodeData &&  this.currentNodeData.path){
+                    let paths =  this.currentNodeData.path.split("/");
+                    allParents = paths.map(el=>{
+                        return {
+                          name : el,
+                        };
+                    })
+                }
+                return allParents ;
+            },
            /* ...mapGetters({
-                selectedNode:"getCurrentNode"
+                currentNodeData:"getCurrentNodeData"
             }),*/
         },
         watch: {
-            selectedNode(val) {
+            currentNodeData(val) {
+                this.loadFolderContent();
+                this.selectedNodes=[];
+            },
+            folderId(val) {
                 this.loadFolderContent();
             }
         },
         mounted() {
             this.loadFolderContent();
             let self = this;
-            this.$bus.$on("file_uploaded", function (payLoad) {
-                self.loadFolderContent();
+            this.$bus.$on("files_uploaded", function (payLoad) {
+                (payLoad||[]).forEach(node=>{
+                    if(node.parentId===self.currentNodeData.id){
+                        self.data.push(node);
+                    }
+                })
+                self.enableUpload=false;
             });
             this.$bus.$on("folder_created", function (payLoad) {
-                /*if(payLoad.parentId===this.selectedNode.id){
-                    this.data.push(payLoad);
-                }*/
-                self.loadFolderContent();
+                if(payLoad.parentId===self.currentNodeData.id){
+                    self.data.push(payLoad);
+                }
             });
-            this.$bus.$on("node_deleted", function (payLoad) {
-                let index = this.data.findIndex(elt=> elt.id===payLoad.id);
-                if(index!==-1)
-                    this.data.splice(index,1);
+            this.$bus.$on("nodes_deleted", function (payLoad) {
+                (payLoad||[]).forEach(node=>{
+                    if(node.parentId===self.currentNodeData.id){
+                        let index = self.data.findIndex(elt=> elt.id===node.id);
+                        if(index!==-1)
+                            self.data.splice(index,1);
+                    }
+                });
             });
         },
         methods: {
             ...mapActions({
                 getNodesByParentId: 'getNodesByParentId',
+                deleteNodesById: 'deleteNodesById',
             }),
             loadFolderContent() {
-                console.log("loadFolderContent : "+this.selectedNode);
+                console.log("loadFolderContent : "+this.currentNodeData);
                 this.data = [];
-                if (!this.selectedNode || !this.selectedNode.id || !this.selectedNode.folder)
+                let folderId = this.folderId || this.currentNodeData.id;
+                if (!folderId || folderId==="")
                     return;
-                this.getNodesByParentId(this.selectedNode.id)
+                this.getNodesByParentId(folderId)
                     .then(nodes => {
                         console.log(nodes);
                         this.data = nodes;
+                        this.selectedNodes=[];
                     })
                     .catch(err => {
-                        this.data = [];
+                        console.error(error);
+                        this.$message({
+                            message: error,
+                            type: 'error'
+                        });
                     });
             },
-            setCurrentNode(row) {
-                this.$store.commit("storeCurrentNode", row);
+            setCurrentFolder(folder) {
+                console.log("setCurrentFolder: ",folder);
+                if(folder.id){
+                    this.$store.commit("storeCurrentNodeData", folder);
+                }
+            },
+            selectionChanged(list){
+                this.selectedNodes = list;
+            },
+            deleteNodes(){
+                console.log("deleteNodes", this.selectedNodes);
+                let self = this;
+                if(this.selectedNodes.length===0)
+                    return;;
+                this.$confirm(`Voulez vous supprimer '${this.selectedNodes.length}' nodes ?`,'Warning', {
+                    confirmButtonText: 'OK',
+                    cancelButtonText: 'Annuler',
+                    type: 'warning'
+                })
+                    .then(yes=>{
+                        let nodesId = self.selectedNodes.map(elt=> elt.id);
+                        self.deleteNodesById(nodesId, true)
+                            .then(ids=>{
+                                console.log(ids);
+                                this.$message({
+                                    message: `'${ids.length}' noeuds supprimés avec succes`,
+                                    type: 'success'
+                                });
+                                ;
+                                let deletedNodes = self.selectedNodes
+                                    .filter(el=> _.findIndex(ids, (o)=> o === el.id)!==-1)
+                                self.$bus.$emit("nodes_deleted",deletedNodes);
+                                self.selectedNodes=[];
+                            })
+                            .catch(error=>{
+                                console.error(error);
+                                this.$message({
+                                    message: error,
+                                    type: 'error'
+                                });
+                            });
+                    });
+            },
+            copyNodes(){
+
+            },
+            moveNodes(){
+
             },
             openCreateFolderDialog(){
                 this.$bus.$emit("create_folder",undefined);
@@ -169,6 +269,11 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+    .el-breadcrumb {
+        font-size: 14px;
+        line-height: 2;
+    }
+
     .el-breadcrumb >>> .el-breadcrumb__separator {
         margin: 0 3px;
         color: #66b1ff;
@@ -179,7 +284,7 @@
     }
 
     .content{
-        height: 93%;
+        height: 90%;
         overflow-y: auto;
         margin-top: 3px;
     }
@@ -192,5 +297,14 @@
     .folder_buttons_set{
         display: flex;
         justify-content: flex-end;
+    }
+
+    .footer-row{
+        width: 100%;
+        background-color: #f8f9fb;
+        bottom: 5px;
+        position: fixed;
+        height: 30px;
+        border-radius: 2px;
     }
 </style>

@@ -1,18 +1,50 @@
 <template>
     <div class="home">
         <el-container style="height: 500px;">
-            <el-aside>
-                <SpaceTree></SpaceTree>
+            <el-aside v-show="showAside">
+                <SpaceTree :showTopMenu="true" :rootPath="'/'"></SpaceTree>
             </el-aside>
             <el-container style="margin-left: 5px;">
                 <el-header >
-                    <div class="header-buttons">
-                        <el-avatar icon="el-icon-user-solid" size="small"></el-avatar>
-                    </div>
+                    <el-row class="el-header-row">
+                        <el-col class="header-left-part">
+                            <div>
+                                <el-button
+                                        @click="showAside=!showAside"
+                                        size="mini"
+                                        :icon="showAside?'el-icon-d-arrow-left':'el-icon-d-arrow-right'"
+                                        :title="showAside?'Collapse':'Expand'"
+                                        circle
+                                ></el-button>
+                            </div>
+                        </el-col>
+                        <el-col class="header-right-part">
+                            <div class="header-buttons">
+                                <el-dropdown trigger="click" @command="handleCommand">
+                                    <span class="el-dropdown-link">
+                                        <el-button
+                                                size="mini"
+                                                icon="el-icon-menu"
+                                                title="Profil"
+                                                circle
+                                        ></el-button>
+                                    </span>
+                                    <el-dropdown-menu slot="dropdown">
+                                        <!--<div style="height: 200px; width: 200px; background-color: #2c3e50;"></div>-->
+                                        <el-dropdown-item icon="el-icon-plus" command="action1">Action 1</el-dropdown-item>
+                                        <el-dropdown-item icon="el-icon-circle-plus" command="action2">Action 2</el-dropdown-item>
+                                        <el-dropdown-item icon="el-icon-circle-plus-outline" command="action3">Action 3</el-dropdown-item>
+                                        <el-dropdown-item icon="el-icon-check" command="action4">Action 4</el-dropdown-item>
+                                        <el-dropdown-item icon="el-icon-circle-check" command="action5">Action 5</el-dropdown-item>
+                                    </el-dropdown-menu>
+                                </el-dropdown>
+                            </div>
+                        </el-col>
+                    </el-row>
                 </el-header>
 
                 <el-main>
-                    <FolderContent :enableUpload="enableUpload"></FolderContent>
+                    <FolderContent></FolderContent>
                 </el-main>
             </el-container>
         </el-container>
@@ -39,14 +71,15 @@
         data() {
             return {
                 enableUpload : false,
+                showAside: true,
             }
         },
         computed : {
             isSelectedNodeFolder(){
-                return this.$store.getters.getCurrentNode.folder;
+                return this.$store.getters.getCurrentNodeData.folder;
             },
             ...mapGetters([
-                 "getCurrentNode"
+                 "getCurrentNodeData"
                 ]),
         },
         methods: {
@@ -56,10 +89,13 @@
                 'getNodesByParentPath',
                 'getNodesByParentId',
             ]),
+            handleCommand(command){
+              console.log("handleCommand : ",command);
+            },
         },
         mounted() {
             let self = this;
-            this.$bus.$on("file_uploaded", function (payLoad) {
+            this.$bus.$on("files_uploaded", function (payLoad) {
                 self.enableUpload = false;
             });
         }
@@ -77,24 +113,34 @@
     }
 
     .el-header{
-        display: flex;
-        flex-direction: row;
-        justify-content: flex-end;
-        padding: 0 10px;
-        line-height: 40px !important;
-        height: 40px !important;
-        text-align: right;
-        font-size: 12px;
         color: #333;
         background-color: #eaedf2;
+        padding: 3px 5px !important;
+        height: unset !important;
     }
 
-    .header-buttons{
+    .el-header-row{
+        display: flex;
+        flex-direction: row;
+    }
+
+    .header-left-part{
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+
+    .header-right-part{
         display: flex;
         flex-direction: row;
         justify-content: flex-end;
-        height: 28px;
-        margin-top: 5px;
+    }
+
+    .el-aside{
+        color: #333;
+        overflow: hidden !important;
+        width: 200px !important;
+        height: 100% !important;
     }
 
     ::-webkit-scrollbar {
@@ -116,12 +162,4 @@
         background: #cfc8c8;
         width: 10px;
     }
-
-    .el-aside{
-        color: #333;
-        overflow: hidden !important;
-        width: 200px !important;
-        height: 100% !important;
-    }
-
 </style>

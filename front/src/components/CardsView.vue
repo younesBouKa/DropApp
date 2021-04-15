@@ -12,7 +12,13 @@
         >
                 <el-col :span="6" v-for="node in row">
                     <div class="node-col">
-                        <NodeCard :node="node"></NodeCard>
+                        <NodeCard
+                                :node="node"
+                                @click.native="selectNode(node)"
+                                @dblclick.native="setCurrentNode(node)"
+                                :class="selectedNodes.findIndex(n=>n.id===node.id)!==-1? 'selected_node':''"
+                        >
+                        </NodeCard>
                     </div>
                 </el-col>
         </el-row>
@@ -38,6 +44,7 @@
         data() {
             return {
                 nbr_cols_in_row: 4,
+                selectedNodes : [],
                 defaultProps: {
                     children: 'children',
                     label: 'name'
@@ -45,17 +52,21 @@
             }
         },
         computed: {
-            selectedNode(){
-                return this.$store.getters.getCurrentNode;
+            currentNodeData(){
+                return this.$store.getters.getCurrentNodeData;
             },
             dataRows() {
                 return _.chunk(this.data, this.nbr_cols_in_row);
             },
             /* ...mapGetters({
-                 selectedNode:"getCurrentNode"
+                 selectedNode:"getCurrentNodeDataData"
              }),*/
         },
-        watch: {},
+        watch: {
+            dataRows(val){
+                this.selectedNodes = [];
+            }
+        },
         mounted() {
 
         },
@@ -63,19 +74,17 @@
             ...mapActions({
                 getNodesByParentId: 'getNodesByParentId',
             }),
-            setCurrentNode(row) {
-                this.$store.commit("storeCurrentNode", row);
+            selectNode(node){
+                console.log("selected node: ",node);
+                let index = this.selectedNodes.findIndex(el=>el.id===node.id);
+                if(index!==-1)
+                    this.selectedNodes.splice(index,1);
+                else
+                    this.selectedNodes.push(node);
+                this.$emit("selectionChanged",this.selectedNodes);
             },
-            openFullScreen2() {
-                const loading = this.$loading({
-                    lock: true,
-                    text: 'Loading',
-                    spinner: 'el-icon-loading',
-                    background: 'rgba(0, 0, 0, 0.7)'
-                });
-                setTimeout(() => {
-                    loading.close();
-                }, 2000);
+            setCurrentNode(node){
+                this.$store.commit("storeCurrentNodeData", node);
             }
         }
     }
@@ -88,5 +97,9 @@
         display: grid;
         justify-content: center;
         vertical-align: middle;
+    }
+
+    .selected_node >>> .el-card{
+        background-color: #e3effd;
     }
 </style>

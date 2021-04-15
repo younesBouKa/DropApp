@@ -1,11 +1,11 @@
 <template>
     <div style="height: 100%">
-        <el-row class="top_buttons">
+        <el-row class="top_buttons" v-show="showTopMenu">
             <el-button @click="openCreateFolderDialog" size="mini" type="primary" icon="el-icon-circle-plus" title="Add new space" circle></el-button>
-            <el-button size="mini" type="info" icon="el-icon-more" title="Expand more" circle></el-button>
-            <el-button @click="refreshTree" size="mini" type="success" icon="el-icon-refresh-right" title="Refresh" circle></el-button>
-            <el-button size="mini" type="warning" icon="el-icon-search" title="Deep search in current folder" circle></el-button>
             <el-button @click="deleteCurrentNode" size="mini" type="danger" icon="el-icon-delete" title="Delete Selected nodes" circle></el-button>
+            <el-button @click="refreshTree" size="mini" type="success" icon="el-icon-refresh-right" title="Refresh" circle></el-button>
+            <el-button disabled size="mini" type="info" icon="el-icon-more" title="Expand more" circle></el-button>
+            <el-button disabled size="mini" type="warning" icon="el-icon-search" title="Deep search in current folder" circle></el-button>
         </el-row>
         <el-input
                 class="search_input mini"
@@ -20,12 +20,13 @@
                 :data="data"
                 :node-key="defaultProps.nodeKey"
                 :default-expanded-keys="defaultExpandedKeys"
-                :current-node-key="currentNode.id"
+                :current-node-key="currentNodeData.id"
                 :empty-text="'No Files'"
                 :filter-node-method="filterNode"
                 :props="defaultProps"
                 @node-click="handleNodeClick"
                 @check="onCheck"
+                @current-change="handleCurrentChange"
                 :highlight-current="true"
                 accordion
                 lazy
@@ -58,7 +59,14 @@
     export default {
         name: "SpaceTree",
         props: {
-            msg: String
+            rootPath: {
+                type: String,
+                default : ()=> "/"
+            },
+            showTopMenu: {
+                type: Boolean,
+                default: ()=> true
+            }
         },
         data() {
             return {
@@ -76,30 +84,53 @@
             }
         },
         computed: {
-            currentNode() {
-                return this.$store.getters.getCurrentNode;
+            currentNodeData() {
+                return this.$store.getters.getCurrentNodeData;
             },
             sortByFolderFirst(){
                 return this.$store.getters.getSortByFolderFirst;
+            },
+            currentNodeElement(){
+                return this.$store.getters.getCurrentNodeElement;
             },
         },
         watch: {
             filterText(val) {
                 this.$refs.tree.filter(val);
             },
-            currentNode(val) {
+            currentNodeData(val) {
+                console.log(this.$refs.tree.root);
                 if (val.id && this.defaultExpandedKeys.indexOf(val.id) === -1)
                     this.defaultExpandedKeys = [val.id];
+            },
+            rootPath(val) {
+                this.getRootFolder();
+            },
+            data(val){
+                this.updateRootElement();
             }
         },
         mounted() {
             this.getRootFolder();
             let self = this;
-            this.$bus.$on("file_uploaded", function (payLoad) {
-                self.getRootFolder();
+            this.$bus.$on("files_uploaded", function (payLoad) {
+                (payLoad||[]).forEach(node=>{
+                    self.$refs.tree.append(node, node.parentId);
+                })
             });
+
             this.$bus.$on("folder_created", function (payLoad) {
                 self.$refs.tree.append(payLoad, payLoad.parentId);
+            });
+
+            this.$bus.$on("nodes_deleted", function (payLoad) {
+                if(self.currentNodeElement && self.currentNodeElement.childNodes){
+                    (payLoad||[]).forEach(node=>{
+                        let index = self.currentNodeElement.childNodes.findIndex(elt=>elt.data.id===node.id);
+                        if(index!==-1)
+                            self.currentNodeElement.childNodes.splice(index,1);
+                    })
+                }
             });
         },
         methods: {
@@ -113,7 +144,7 @@
                 this.$bus.$emit("create_folder",undefined);
             },
             refreshTree(){
-                let selectedNode = this.currentNode;
+                let selectedNode = this.currentNodeData;
                 let self = this;
                 this.getRootFolder().then(parent=>{
                     self.defaultExpandedKeys.push(selectedNode.id);
@@ -121,21 +152,21 @@
             },
             deleteCurrentNode(){
                 let self = this;
-                this.$confirm(`Voulez vous supprimer '${this.currentNode.name}' ?`,'Warning', {
+                this.$confirm(`Voulez vous supprimer '${this.currentNodeData.name}' ?`,'Warning', {
                     confirmButtonText: 'OK',
                     cancelButtonText: 'Annuler',
                     type: 'warning'
                 })
                     .then(yes=>{
-                        self.deleteNodeById(self.currentNode.id,true)
+                        self.deleteNodeById(self.currentNodeData.id,true)
                             .then(count=>{
                                 console.log(count);
                                 this.$message({
-                                    message: `'${this.currentNode.name}' supprimé avec succes`,
+                                    message: `'${this.currentNodeData.name}' supprimé avec succes`,
                                     type: 'success'
                                 });
-                                self.$bus.$emit("node_deleted",self.currentNode);
-                                self.$store.commit("storeCurrentNode",{});
+                                self.$bus.$emit("nodes_deleted",[self.currentNodeData]);
+                                self.$store.commit("storeCurrentNodeData",undefined);
                                 self.refreshTree();
                             })
                             .catch(error=>{
@@ -150,14 +181,16 @@
             getRootFolder() {
                 this.data = [];
                 let self = this;
+                let rootPath = this.rootPath || "/";
                 return new Promise((resolve, reject) => {
-                    self.getNodeByPath("/")
+                    self.getNodeByPath(rootPath)
                         .then(data => {
                             console.log(data);
                             if (data) {
                                 self.rootFolder = data;
                                 self.data.push(data);
-                                self.$store.commit("storeCurrentNode", self.data[0]);
+                                self.$store.commit("storeCurrentNodeData", self.data[0]);
+                                self.updateRootElement();
                             }
                             resolve(data);
                         }).catch(err => {
@@ -188,7 +221,14 @@
             },
             handleNodeClick(node) {
                 console.log(`node clicked : `, node);
-                this.$store.commit("storeCurrentNode", node);
+            },
+            handleCurrentChange(data,node) {
+                console.log(`current node changed : `, data, node);
+                this.$store.commit("storeCurrentNodeElement", node);
+                this.$store.dispatch("storeRootElement",this.$refs.tree.root);
+            },
+            updateRootElement(){
+                this.$store.dispatch("storeRootElement",this.$refs.tree.root);
             },
             loadNode(node, resolve) {
                 console.log(`loadNode: `, node);

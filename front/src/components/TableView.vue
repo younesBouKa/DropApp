@@ -39,7 +39,7 @@
                              :underline="false"
                              style="cursor: pointer;"
                              :icon="scope.row.type==='FILE' ? 'el-icon-document' : 'el-icon-folder'"
-                             @click="setCurrentNode(scope.row)"
+                             @click="setCurrentNodeData(scope.row)"
                              disable-transitions>{{scope.row.name}}
                     </el-link>
                     <span v-else-if="scope.column.property==='createDate'">
@@ -125,10 +125,14 @@
                 })
             },
             /* ...mapGetters({
-                 selectedNode:"getCurrentNode"
+                 selectedNode:"getCurrentNodeData"
              }),*/
         },
-        watch: {},
+        watch: {
+            dataRows(val){
+                this.selectedNodes = [];
+            }
+        },
         mounted() {
         },
         methods: {
@@ -137,17 +141,18 @@
             }),
             handleSelectionChange(val) {
                 this.selectedRows = val;
+                this.$emit("selectionChanged",this.selectedRows);
             },
             filterHandler(value, row, column) {
                 const property = column['property'];
                 return row[property] === value;
             },
-            setCurrentNode(row) {
-                this.$store.commit("storeCurrentNode", row);
+            setCurrentNodeData(row) {
+                this.$store.commit("storeCurrentNodeData", row);
             },
             rowDblClick(row, column, event) {
                 console.log("rowDblClick : ", row, column, event);
-                this.setCurrentNode(row);
+                this.setCurrentNodeData(row);
             },
             rowCtxMenu(row, column, event) {
                 console.log("rowCtxMenu : ", row, column, event);

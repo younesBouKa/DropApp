@@ -29,27 +29,27 @@
         },
         data() {
             return {
-                uploadUrl : "/api/file/uploadFile",
+                uploadUrl : "/api/file/uploadMultiFiles",
                 fileList: [],
                 data : {"toto":"test"},
                 loading : undefined,
             }
         },
         computed: {
-            selectedNode(){
-                return this.$store.getters.getCurrentNode;
+            currentNode(){
+                return this.$store.getters.getCurrentNodeData;
             },
-            isSelectedNodeFolder(){
-                return this.selectedNode.folder;
+            isCurrentNodeFolder(){
+                return this.currentNode.folder;
             },
             isEmptyFolder(){
-                return this.isSelectedNodeFolder && this.data.length===0;
+                return this.isCurrentNodeFolder && this.data.length===0;
             },
             canUploadFileInFolder(){
-                return this.isSelectedNodeFolder && this.isEmptyFolder;
+                return this.isCurrentNodeFolder && this.isEmptyFolder;
             },
             /* ...mapGetters({
-                 selectedNode:"getCurrentNode"
+                 currentNode:"getCurrentNodeData"
              }),*/
         },
         methods: {
@@ -58,10 +58,10 @@
                 const self = this;
                 return new Promise((resolve, reject) => {
                     this.data = {};
-                    if(this.isSelectedNodeFolder)
-                        this.data.parentId = this.selectedNode.id;
+                    if(this.isCurrentNodeFolder)
+                        this.data.parentId = this.currentNode.id;
                     else
-                        this.data.parentId = this.selectedNode.parentId;
+                        this.data.parentId = this.currentNode.parentId;
                     this.$confirm(`Upload file : '${file.name}' ?`, "Warning", {
                         confirmButtonText: 'OK',
                         cancelButtonText: 'Annuler',
@@ -108,7 +108,7 @@
                     message: 'Fichier "'+response.name+'" téléchargé avec  success.',
                     type: 'success'
                 });
-                this.$bus.$emit("file_uploaded",response);
+                this.$bus.$emit("files_uploaded",response);
             },
             onError(err, file, fileList){
                 console.log(`onError :`,err,file,fileList);

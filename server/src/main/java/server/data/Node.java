@@ -60,7 +60,7 @@ public class Node {
     }
 
     public void setPath(String path) {
-        this.path = path;
+        this.path = path.trim();
     }
 
     public Permission getPermission() {
@@ -100,7 +100,7 @@ public class Node {
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = name.trim();
     }
 
     public void setFileId(String fileId) {

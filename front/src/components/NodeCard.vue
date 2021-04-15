@@ -5,7 +5,7 @@
                 <i :class="node.type==='FILE' ? 'el-icon-document' : 'el-icon-folder'"></i>
                 <el-col>
                     <el-link :underline="false"
-                             @click="setCurrentNode(node)"
+                             @click="setCurrentNodeData(node)"
                              style="cursor: pointer; margin-left: 10px;"
                              disable-transitions>
                         {{node.name}}
@@ -36,7 +36,7 @@
         },
         computed: {
             /* ...mapGetters({
-                 selectedNode:"getCurrentNode"
+                 selectedNode:"getCurrentNodeDataData"
              }),*/
         },
         watch: {},
@@ -47,8 +47,8 @@
             ...mapActions({
                 getNodesByParentId: 'getNodesByParentId',
             }),
-            setCurrentNode(row) {
-                this.$store.commit("storeCurrentNode", row);
+            setCurrentNodeData(row) {
+                this.$store.commit("storeCurrentNodeData", row);
             },
         }
     }

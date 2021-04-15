@@ -27,14 +27,14 @@
                     >
                         <el-option
                                 v-for="item in existingPaths"
-                                :key="item.value"
-                                :label="item.label"
-                                :value="item.value">
+                                :key="item.id"
+                                :label="item.path"
+                                :value="item.path">
                         </el-option>
                     </el-select>
                 </el-form-item>
-                <el-form-item label="Permission" prop="permission">
-                    <el-radio-group v-model="nodeForm.permission">
+                <el-form-item label="Permission" prop="permission" size="small">
+                    <el-radio-group v-model="nodeForm.permission" size="small">
                         <el-radio-button label="READ" name="type" border></el-radio-button>
                         <el-radio-button label="WRITE" name="type" border></el-radio-button>
                         <el-radio-button label="READ_WRITE" name="type" border></el-radio-button>
@@ -42,8 +42,8 @@
                 </el-form-item>
             </el-form>
             <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">Cancel</el-button>
-                <el-button type="primary" @click="createFolder">Create</el-button>
+                <el-button size="small" @click="dialogVisible = false">Cancel</el-button>
+                <el-button size="small" type="primary" @click="createFolder">Create</el-button>
             </span>
     </el-dialog>
 </template>
@@ -84,8 +84,11 @@
             }
         },
         computed: {
-            currentNode() {
-                return this.$store.getters.getCurrentNode;
+            currentNodeData() {
+                return this.$store.getters.getCurrentNodeData;
+            },
+            rootNodeElement() {
+                return this.$store.getters.getRootNodeElement;
             },
         },
         watch: {
@@ -105,15 +108,20 @@
             ]),
             openCreateFolderDialog(currentNode){
                 if(!currentNode){
-                    currentNode = this.currentNode;
+                    currentNode = this.currentNodeData;
                 }
                 if(currentNode && (currentNode.folder|| currentNode.type==="FOLDER")){
                     this.nodeForm.path = currentNode.path;
                 }else{
                     this.nodeForm.path = currentNode.parentPath || "";
                 }
-                //this.existingPaths = this.data.map(el=> el.path);
-                this.dialogVisible = true;
+                let self = this;
+                this.$store.dispatch("getAllAvailablePathsFrom",{})
+                    .then(paths=>{
+                        self.existingPaths =paths.filter(elt=> elt.folder);
+                    }).finally(()=>{
+                        this.dialogVisible = true;
+                    });
             },
             handleCloseFolderCreationDialog(done){
                 console.log("handleCloseFolderCreationDialog", done);
@@ -150,19 +158,6 @@
                             type: 'error'
                         });
                     })
-            },
-            getRootFolder() {
-                let self = this;
-                return new Promise((resolve, reject) => {
-                    self.getNodeByPath("/")
-                        .then(data => {
-                            console.log(data);
-                            resolve(data);
-                        }).catch(err => {
-                            console.error(err);
-                            reject(err);
-                        });
-                });
             },
         }
     }

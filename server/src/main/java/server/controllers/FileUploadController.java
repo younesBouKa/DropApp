@@ -59,7 +59,7 @@ public class FileUploadController {
         parameterMap.forEach((name , values)-> map.put(name,request.getParameter(name)));
         List<Node> nodes = new ArrayList<>();
         request.getFileMap().forEach((name, file)->{
-            map.put("name", name);
+            map.put("name", file.getOriginalFilename().trim());
             try {
                 nodes.add(doUplaodFile(file,map));
             } catch (IOException e) {
