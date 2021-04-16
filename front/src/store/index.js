@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
+import de from "element-ui/src/locale/lang/de";
 
 const axios = require('axios');
 const _ = require('lodash');
@@ -41,6 +42,8 @@ export default new Vuex.Store({
         token: "",
         rootNodeElement : {}, // from tree
         loadedNodes : [], // from tree
+        clipBoardNodes : [],
+        clipBoardOperation : "COPY", // by default
         permissionOptions : {
             "read":{
                 icon : "el-icon-view",
@@ -78,11 +81,14 @@ export default new Vuex.Store({
         },
         getSortByFolderFirst : (state, getters) => {
             return state.sortByFoldersFirst;
+        },
+        getNodesInClipBoard : (state, getters) => {
+            return state.clipBoardNodes;
         }
     },
     mutations: {
         storeCurrentNodeData(state, data) {
-            console.log("mutation [storeCurrentNodeData] : "+data);
+            console.log("mutation [storeCurrentNodeData] : ",data);
             state.currentNodeData = data ;
             if(state.loadedNodes.length>0){
                 let index = state.loadedNodes.indexOf(elt=> elt.data.id === data.id);
@@ -91,18 +97,23 @@ export default new Vuex.Store({
             }
         },
         storeCurrentNodeElement(state, node){
-            console.log("mutation [storeCurrentNodeElement] : "+node);
+            console.log("mutation [storeCurrentNodeElement] : ",node);
             state.currentNodeElement = node ;
             if(!state.currentNodeData || state.currentNodeData.id!==node.data.id)
                 state.currentNodeData = node.data
         },
         storeRootNodeElement(state, root){
-            console.log("mutation [storeRootNodeElement] : "+root);
+            console.log("mutation [storeRootNodeElement] : ",root);
             state.rootNodeElement = root ;
         },
         storeLoadedNodes(state, elements){
-            console.log("mutation [storeLoadedNodes] : "+elements);
+            console.log("mutation [storeLoadedNodes] : ",elements);
             state.loadedNodes = elements;
+        },
+        setNodesInClipBoard(state, elements, operationType){
+            console.log("mutation [setNodesInClipBoard] : ",elements, operationType);
+            state.clipBoardNodes = elements;
+            state.clipBoardOperation = operationType || "COPY";
         },
     },
     actions: {
@@ -139,6 +150,29 @@ export default new Vuex.Store({
                     });
                     paths = _.uniq(paths);
                     resolve(paths);
+                }catch(error){
+                    reject(error);
+                }
+            });
+        },
+
+        pasteNodesIn({state, getters, commit, dispatch}, destNode) {
+            return new Promise((resolve, reject) => {
+                try {
+                    destNode = destNode ? destNode : getters.getCurrentNodeData;
+                    if(state.clipBoardNodes.length===0)
+                      reject("no node was selected");
+                    if(!destNode || !destNode.id)
+                      reject("destination node is invalid");
+
+                    let operation = state.clipBoardOperation==="CUT" ? "copyNodeById" : (state.clipBoardOperation==="COPY" ? "moveNodeById" : undefined);
+                    if(!operation)
+                        reject("operation undefined");
+                    let srcId= state.clipBoardNodes[0].id,destId = destNode.id;
+                    console.log("=======",srcId,destId);
+                    dispatch(operation,  {srcId,destId})
+                        .then(response=> resolve(response))
+                        .catch(error=> reject(error));
                 }catch(error){
                     reject(error);
                 }
@@ -249,7 +283,7 @@ export default new Vuex.Store({
             })
         },
 
-        deleteNodeByPath({state, getters, commit, dispatch}, path, recursive) {
+        deleteNodeByPath({state, getters, commit, dispatch}, {path, recursive}) {
             return new Promise((resolve, reject) => {
                 postData(
                     NODE_API_PATH + "deleteNodeByPath",
@@ -266,7 +300,7 @@ export default new Vuex.Store({
                 )
             })
         },
-        deleteNodeById({state, getters, commit, dispatch}, nodeId, recursive) {
+        deleteNodeById({state, getters, commit, dispatch}, {nodeId, recursive}) {
             return new Promise((resolve, reject) => {
                 postData(
                     NODE_API_PATH + "deleteNodeById",
@@ -283,7 +317,7 @@ export default new Vuex.Store({
                 )
             })
         },
-        deleteNodesById({state, getters, commit, dispatch}, nodesId, recursive) {
+        deleteNodesById({state, getters, commit, dispatch}, {nodesId, recursive}) {
             return new Promise((resolve, reject) => {
                 postData(
                     NODE_API_PATH + "deleteNodesById",
@@ -301,7 +335,7 @@ export default new Vuex.Store({
             })
         },
 
-        hasPermissionById({state, getters, commit, dispatch}, nodeId, permission) {
+        hasPermissionById({state, getters, commit, dispatch}, {nodeId, permission}) {
             return new Promise((resolve, reject) => {
                 postData(
                     NODE_API_PATH + "hasPermissionById",
@@ -318,7 +352,7 @@ export default new Vuex.Store({
                 )
             })
         },
-        hasPermissionByPath({state, getters, commit, dispatch}, nodePath, permission) {
+        hasPermissionByPath({state, getters, commit, dispatch}, {nodePath, permission}) {
             return new Promise((resolve, reject) => {
                 postData(
                     NODE_API_PATH + "hasPermissionByPath",
@@ -336,7 +370,7 @@ export default new Vuex.Store({
             })
         },
 
-        copyNodeByPath({state, getters, commit, dispatch}, srcPath, destPath) {
+        copyNodeByPath({state, getters, commit, dispatch}, {srcPath, destPath}) {
             return new Promise((resolve, reject) => {
                 postData(
                     NODE_API_PATH + "hasPermissionByPath",
@@ -353,7 +387,7 @@ export default new Vuex.Store({
                 )
             })
         },
-        copyNodeById({state, getters, commit, dispatch}, srcId, destId) {
+        copyNodeById({state, getters, commit, dispatch}, {srcId, destId}) {
             return new Promise((resolve, reject) => {
                 postData(
                     NODE_API_PATH + "copyNodeById",
@@ -371,7 +405,7 @@ export default new Vuex.Store({
             })
         },
 
-        moveNodeByPath({state, getters, commit, dispatch}, srcPath, destPath) {
+        moveNodeByPath({state, getters, commit, dispatch}, {srcPath, destPath}) {
             return new Promise((resolve, reject) => {
                 postData(
                     NODE_API_PATH + "moveNodeByPath",
@@ -388,8 +422,9 @@ export default new Vuex.Store({
                 )
             })
         },
-        moveNodeById({state, getters, commit, dispatch}, srcId, destId) {
+        moveNodeById({state, getters, commit, dispatch}, {srcId, destId}) {
             return new Promise((resolve, reject) => {
+                console.log("++++++",srcId,destId);
                 postData(
                     NODE_API_PATH + "moveNodeById",
                     {srcId, destId},

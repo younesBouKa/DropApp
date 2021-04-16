@@ -17,8 +17,9 @@
                     <el-button @click="enableUpload=!enableUpload" size="mini" :type="!enableUpload? 'success' : 'warning'" icon="el-icon-upload" title="Upload file" circle></el-button>
                     <el-button @click="openCreateFolderDialog" type="primary" size="mini" icon="el-icon-folder-add" title="Create folder" circle></el-button>
                     <el-divider direction="vertical"></el-divider>
-                    <el-button @click="moveNodes" disabled size="mini" type="warning" icon="el-icon-back" title="Deplacer" circle></el-button>
-                    <el-button @click="copyNodes" disabled size="mini" type="info" icon="el-icon-document-copy" title="Copier" circle></el-button>
+                    <el-button @click="pasteNodes" :disabled="nodesInClipBoard.length===0" size="mini" icon="el-icon-receiving" title="Coller" circle></el-button>
+                    <el-button @click="moveNodes('CUT')" :disabled="selectedNodes.length===0" size="mini" type="warning" icon="el-icon-scissors" title="Couper" circle></el-button>
+                    <el-button @click="moveNodes" :disabled="selectedNodes.length===0" size="mini" type="info" icon="el-icon-document-copy" title="Copier" circle></el-button>
                     <el-button @click="deleteNodes" :disabled="selectedNodes.length===0" size="mini" type="danger" icon="el-icon-delete" title="Delete Selected nodes" circle></el-button>
                     <el-divider direction="vertical"></el-divider>
                     <el-button @click="isListView=!isListView" size="mini"  :icon="isListView?'el-icon-files':'el-icon-s-grid'" title="Switch views" circle></el-button>
@@ -147,6 +148,9 @@
                 }
                 return allParents ;
             },
+            nodesInClipBoard(){
+              return this.$store.getters.getNodesInClipBoard;
+            },
            /* ...mapGetters({
                 currentNodeData:"getCurrentNodeData"
             }),*/
@@ -197,7 +201,7 @@
                 let folderId = this.folderId || this.currentNodeData.id;
                 if (!folderId || folderId==="")
                     return;
-                this.getNodesByParentId(folderId)
+                this.$store.dispatch("getNodesByParentId",folderId)
                     .then(nodes => {
                         console.log(nodes);
                         this.data = nodes;
@@ -225,25 +229,31 @@
                 let self = this;
                 if(this.selectedNodes.length===0)
                     return;;
-                this.$confirm(`Voulez vous supprimer '${this.selectedNodes.length}' nodes ?`,'Warning', {
+                this.$confirm(`Voulez vous supprimer '${this.selectedNodes.map(e=>e.name).join(",")}' nodes ?`,'Warning', {
                     confirmButtonText: 'OK',
                     cancelButtonText: 'Annuler',
                     type: 'warning'
                 })
                     .then(yes=>{
                         let nodesId = self.selectedNodes.map(elt=> elt.id);
-                        self.deleteNodesById(nodesId, true)
+                        self.$store.dispatch("deleteNodesById",{nodesId, recursive:true})
                             .then(ids=>{
                                 console.log(ids);
-                                this.$message({
-                                    message: `'${ids.length}' noeuds supprimés avec succes`,
-                                    type: 'success'
-                                });
-                                ;
-                                let deletedNodes = self.selectedNodes
-                                    .filter(el=> _.findIndex(ids, (o)=> o === el.id)!==-1)
-                                self.$bus.$emit("nodes_deleted",deletedNodes);
-                                self.selectedNodes=[];
+                                if(ids.length>0){
+                                    let deletedNodes = self.selectedNodes
+                                        .filter(el=> _.findIndex(ids, (o)=> o === el.id)!==-1)
+                                    self.$bus.$emit("nodes_deleted",deletedNodes);
+                                    this.$message({
+                                        message: `'${deletedNodes.map(e=>e.name).join(",")}' supprimés avec succes`,
+                                        type: 'success'
+                                    });
+                                    self.selectedNodes=[];
+                                }else{
+                                    this.$message({
+                                        message: `'Aucune noeud ni suprimée`,
+                                        type: 'warning'
+                                    });
+                                }
                             })
                             .catch(error=>{
                                 console.error(error);
@@ -254,11 +264,28 @@
                             });
                     });
             },
-            copyNodes(){
-
+            moveNodes(operation){
+                console.log("copyNodes : ",this.selectedNodes);
+                if(this.selectedNodes.length>0)
+                    this.$store.commit("setNodesInClipBoard",this.selectedNodes,operation||"COPY");
             },
-            moveNodes(){
-
+            pasteNodes(){
+                console.log("pasteNodes : ");
+                this.$store.dispatch("pasteNodesIn",this.currentNodeData)
+                    .then(response=>{
+                        this.$message({
+                            message: `'${response.name}' collé avec succes`,
+                            type: 'success'
+                        });
+                        this.loadFolderContent();
+                    })
+                    .catch(error=>{
+                        console.error(error);
+                        this.$message({
+                            message: error,
+                            type: 'error'
+                        });
+                    });
             },
             openCreateFolderDialog(){
                 this.$bus.$emit("create_folder",undefined);

@@ -1,10 +1,12 @@
 package server.data;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Update;
 
 import java.util.Date;
+import java.util.List;
 
 @Document(collection = "node")
 public class Node {
@@ -21,6 +23,10 @@ public class Node {
     NodeType type;
     String name;
     String fileId;
+    @Transient
+    Node parent;
+    @Transient
+    List<Node> children;
 
     public Node(){
         this(Node.ROOT_PATH,Permission.READ_WRITE,null,new Date(),NodeType.FOLDER,"root");
@@ -109,6 +115,22 @@ public class Node {
 
     public String getFileId(){
         return this.fileId;
+    }
+
+    public Node getParent() {
+        return parent;
+    }
+
+    public void setParent(Node parent) {
+        this.parent = parent;
+    }
+
+    public List<Node> getChildren() {
+        return children;
+    }
+
+    public void setChildren(List<Node> children) {
+        this.children = children;
     }
 
     public static String getDefaultFolderName(){

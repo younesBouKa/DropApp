@@ -97,28 +97,28 @@ public class NodeController {
     }
 
     @PostMapping("/copyNodeByPath")
-    public Node copyNodeByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Node copyNodeByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
         String srcPath = (String)body.getOrDefault("srcPath",null);
         String destPath = (String)body.getOrDefault("destPath",null);
         return nodeService.copyNodeWithPath(srcPath,destPath,false);
     }
 
     @PostMapping("/copyNodeById")
-    public Node copyNodeById(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Node copyNodeById(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
         String srcId = (String)body.getOrDefault("srcId",null);
         String destId = (String)body.getOrDefault("destId",null);
         return nodeService.copyNodeWithId(srcId,destId,false);
     }
 
     @PostMapping("/moveNodeByPath")
-    public Node moveNodeByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Node moveNodeByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
         String srcPath = (String)body.getOrDefault("srcPath",null);
         String destPath = (String)body.getOrDefault("destPath",null);
         return nodeService.copyNodeWithPath(srcPath,destPath,true);
     }
 
     @PostMapping("/moveNodeById")
-    public Node moveNodeById(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Node moveNodeById(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
         String srcId = (String)body.getOrDefault("srcId",null);
         String destId = (String)body.getOrDefault("destId",null);
         return nodeService.copyNodeWithId(srcId,destId,true);

@@ -56,6 +56,7 @@ public class NodeService {
     }
 
     public List<Node> getNodesByQuery(Map<String, Object> query) {
+        // TODO more details are required here (see later)
         if(query.get("parentId")!=null){
             return getNodesByParentId((String) query.get("parentId"));
         }
@@ -67,6 +68,7 @@ public class NodeService {
     }
 
     public Node getRoot(){
+        // TODO to see later because we can have many roots
         Node root = mongoOperations.findOne(new Query(Criteria.where("path").is(Node.ROOT_PATH)),Node.class);
         if(root!=null)
             return root;
@@ -94,7 +96,7 @@ public class NodeService {
             }else{
                 return null;
             }
-        }else if(node.getPath()!=null){ // setting parentId
+        }else if(node.getPath()!=null){ // setting correct parentId
             Node parentNode = getNodeByPath(node.getParentFolderPath());
             if(parentNode!=null)
                 node.setParentId(parentNode.getId());
@@ -120,7 +122,7 @@ public class NodeService {
     /****************** delete Nodes ************************/
     public List<String> deleteNodesByIds(List<String> listIds, boolean recursive) {
         if(listIds==null || listIds.size()==0)
-            return null;
+            return new ArrayList<>();
         return listIds
                 .stream()
                 .filter(nodeId ->deleteNodeById(nodeId, recursive)>0)
@@ -134,24 +136,32 @@ public class NodeService {
         return deleteNodeById(node.getId(), recursive);
     }
 
-    public long deleteNodeById(String nodeId, boolean recursive) {
+    public long deleteNodeById(String nodeId, boolean recursive){
+        if(nodeId==null)
+            return 0;
         Node node = getNodeById(nodeId);
         long count = 0;
         if(node==null)
             return 0;
-        count = mongoOperations.remove(new Query(Criteria.where("_id").is(node.getId())), Node.class).getDeletedCount();
-        if(node.isFile() && count>0)
-            fileService.deleteWithId(nodeId);
-        if(count>0 && node.isFolder() && recursive){
-            List<Node> children = getNodesByParentId(node.getId());
-            count = count + children.stream()
-                    .map(child -> deleteNodeById(child.getId(), true))
-                    .reduce((acc,co)-> co+acc).orElse(0l);
+        if(node.isFile()){
+            count = mongoOperations.remove(new Query(Criteria.where("_id").is(node.getId())), Node.class).getDeletedCount();
+            if(count>0)
+                fileService.deleteWithId(nodeId);
+        }else if(node.isFolder() && recursive){
+            count = mongoOperations.remove(new Query(Criteria.where("_id").is(node.getId())), Node.class).getDeletedCount();
+            if(count>0){
+                List<Node> children = getNodesByParentId(node.getId());
+                count = count + children.stream()
+                        .map(child -> deleteNodeById(child.getId(), true))
+                        .reduce((acc,co)-> co+acc).orElse(0l);
+            }
         }
+        // TODO should i fire an exception if recursive=false and node if folder ?!
         return count;
     }
 
     /****************** permissions ************************/
+    // TODO permissions should be in another collection with relations with groups or users
     public boolean hasPermissionById(String nodeId, Object permission) {
         Node node = getNodeById(nodeId);
         return hasPermission(node,Permission.getFrom(permission));
@@ -180,13 +190,14 @@ public class NodeService {
         Node parentNode = null;
         if( metaData.get("parentId")!=null)
             parentNode = getNodeById((String)metaData.get("parentId"));
-        if(parentNode==null || metaData.get("path")!=null)
+        if(parentNode==null && metaData.get("path")!=null)
             parentNode = createFolderFromPath((String) metaData.get("path"));
         if(parentNode==null)
             parentNode = getRoot();
         Permission permission = Permission.getFrom(metaData.getOrDefault("permission",parentNode.getPermission()));
         String path = parentNode.getPath();
-        String name = (String)metaData.getOrDefault("name","folder_"+new Date().getTime());
+        String name = (String)metaData.getOrDefault("name",Node.getDefaultFileName());
+        name = name.replaceAll("\\.","_").trim();
         path = concatTwoPaths(path, name);
         Node node = new Node(path,permission,parentNode.getId(),new Date(), NodeType.FOLDER,name);
         Node oldNode = getNodeByPath(path);
@@ -204,15 +215,17 @@ public class NodeService {
         Node parentNode = getRoot();
         int length = pathParts.length;
         String path = getRoot().getPath();
-        for(int i=0; i< length; i++){
-            if(pathParts[i].isEmpty()|| pathParts[i].contains("."))
+        for (String pathPart : pathParts) {
+            if (pathPart.isEmpty())
                 continue;
-            path = concatTwoPaths(path, pathParts[i]);
-            currentNode = getNodeByPath(path);
-            if(currentNode==null) {
-                currentNode = new Node(path, parentNode.getPermission(), parentNode.getId(), new Date(), NodeType.FOLDER, pathParts[i]);
+            currentNode = getNodeByPath(concatTwoPaths(path, pathPart));
+            if (currentNode == null) {
+                currentNode = new Node(concatTwoPaths(path, pathPart), parentNode.getPermission(), parentNode.getId(), new Date(), NodeType.FOLDER, pathPart);
                 currentNode = upsertOneNode(currentNode);
+                if(currentNode==null)
+                    continue;
             }
+            path = concatTwoPaths(path, pathPart);
             parentNode = currentNode;
         }
         return currentNode;
@@ -222,7 +235,8 @@ public class NodeService {
         Node parentNode = null;
         if(metaData.get("parentId")!=null){
             parentNode = getNodeById((String) metaData.get("parentId"));
-        }else if(metaData.get("parentPath")!=null){
+        }
+        if(parentNode==null && metaData.get("parentPath")!=null){
             parentNode = getNodeByPath((String) metaData.get("parentPath"));
             if(parentNode==null)
                 parentNode = createFolderFromPath((String) metaData.get("parentPath"));
@@ -255,45 +269,66 @@ public class NodeService {
 
     /****************** copy and move node ************************/
 
-    public Node copyNodeWithPath(String srcPath, String destPath, boolean move){
+    public Node copyNodeWithPath(String srcPath, String destPath, boolean move) throws Exception{
         if (!existsWithPath(srcPath))
-            return null;// TODO to see later
+            throw new Exception("no node with source path: "+srcPath);
         Node srcNode = getNodeByPath(srcPath);
         Node destNode = getNodeByPath(destPath);
         if(destNode==null){
             destNode = createFolderFromPath(destPath);
         }
+        if (destNode==null)
+            throw new Exception("can't create node with destination path: "+destPath);
         destPath = destNode.getPath();
 
-        if(srcNode.isFolder()){
+        if(srcNode.isFolder() && destNode.isFolder()){
             // copy folder
-            Node folderCopy = duplicateNode(srcNode.getId());
+            Node folderCopy = duplicateNodeWithGivenId(srcNode.getId());
             folderCopy.setParentId(destNode.getId());
             folderCopy.setPath(concatTwoPaths(destPath,folderCopy.getName()));
-            upsertOneNode(folderCopy);
-            deleteNodeById(srcNode.getId(),false);
+            Node createdFolderCopy = upsertOneNode(folderCopy);
+            if(createdFolderCopy==null)
+                return null;
+            if(move)
+                deleteNodeById(srcNode.getId(),false);
             // copy children
             List<Node> children = getNodesByParentId(srcNode.getId());
-            Node finalDestNode = destNode;
+            Node finalDestNode = createdFolderCopy;
             children.stream().forEach(child->{
                 String dest =  concatTwoPaths(finalDestNode.getPath(),child.getName());
-                copyNodeWithPath(child.getPath(),dest, move);
+                try {
+                    copyNodeWithPath(child.getPath(),dest, move);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             });
+            return createdFolderCopy;
         }else if(srcNode.isFile()){
             // copy file
-            Node fileCopy = duplicateNode(srcNode.getId());
-            fileCopy.setParentId(destNode.getId());
-            fileCopy.setPath(concatTwoPaths(destPath,fileCopy.getName()));
-            upsertOneNode(fileCopy);
-            deleteNodeById(srcNode.getId(),false);
+            Node fileCopy = duplicateNodeWithGivenId(srcNode.getId());
+            if(destNode.isFolder()){
+                fileCopy.setParentId(destNode.getId());
+                fileCopy.setPath(concatTwoPaths(destPath,fileCopy.getName()));
+            }else{
+                fileCopy.setParentId(destNode.getParentId());
+                fileCopy.setPath(concatTwoPaths(destNode.getParentFolderPath(),fileCopy.getName()));
+                fileCopy.setId(destNode.getId());
+            }
+            Node createdFileCopy = upsertOneNode(fileCopy);
+            if(createdFileCopy==null)
+                return null;
+            if(move)
+                deleteNodeById(srcNode.getId(),false);
+            return createdFileCopy;
+        }else{
+            throw new Exception(String.format("You are trying to copy  folder %s  to file %s ", srcNode.getPath(), destNode.getPath()));
         }
-        return destNode;
     }
 
-    public Node copyNodeWithId(String srcId, String destId, boolean andDelete){
+    public Node copyNodeWithId(String srcId, String destId, boolean move) throws Exception {
         Node srcNode = getNodeById(srcId), destNode = getNodeById(destId);
         if(srcNode!=null && destNode !=null)
-            return copyNodeWithPath(srcNode.getPath(), destNode.getPath(), andDelete);
+            return copyNodeWithPath(srcNode.getPath(), destNode.getPath(), move);
         return null;
     }
 
@@ -304,7 +339,7 @@ public class NodeService {
                 secondPath;
     }
 
-    public Node duplicateNode (String nodeId){
+    public Node duplicateNodeWithGivenId (String nodeId){
         Node node = getNodeById(nodeId);
         if(node==null)
             return null;
