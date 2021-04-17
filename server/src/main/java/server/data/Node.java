@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Update;
 
+import java.io.InputStream;
 import java.util.Date;
 import java.util.List;
 
@@ -23,22 +24,32 @@ public class Node {
     NodeType type;
     String name;
     String fileId;
+    String contentType;
+    long fileSize;
+
     @Transient
     Node parent;
     @Transient
     List<Node> children;
+    @Transient
+    InputStream content;
 
     public Node(){
-        this(Node.ROOT_PATH,Permission.READ_WRITE,null,new Date(),NodeType.FOLDER,"root");
+        this(Node.ROOT_PATH,Permission.READ_WRITE,null,new Date(),NodeType.FOLDER,"root", null, null,0);
     }
 
-    public Node(String path, Permission permission, String parentId, Date createDate, NodeType type, String name) {
+    public Node(String path, Permission permission, String parentId,
+                Date createDate, NodeType type, String name,
+                String fileId, String contentType, long fileSize) {
         this.path = path;
         this.permission = permission;
         this.parentId = parentId;
         this.createDate = createDate;
         this.type = type;
         this.name = name;
+        this.fileId = fileId;
+        this.contentType= contentType;
+        this.fileSize= fileSize;
     }
 
     public Update createUpdateObj(){
@@ -49,6 +60,9 @@ public class Node {
                 .set("path", this.getPath())
                 .set("type", this.getType())
                 .set("name", this.getName())
+                .set("fileId", this.getFileId())
+                .set("mimeType", this.getContentType())
+                .set("fileSize", this.getFileSize())
         ;
         return update;
     }
@@ -131,6 +145,30 @@ public class Node {
 
     public void setChildren(List<Node> children) {
         this.children = children;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public InputStream getContent() {
+        return content;
+    }
+
+    public void setContent(InputStream content) {
+        this.content = content;
+    }
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
     }
 
     public static String getDefaultFolderName(){

@@ -1,11 +1,51 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-import de from "element-ui/src/locale/lang/de";
 
 const axios = require('axios');
 const _ = require('lodash');
-
+const DEBUG = process.env.NODE_ENV === "development";
 Vue.use(Vuex)
+// axios interceptors
+/*
+// for requests
+axios.interceptors.request.use((config) => {
+    /// In dev, intercepts request and logs it into console for dev
+    if (DEBUG) { console.info("✉️ ", config); }
+    return config;
+}, (error) => {
+    if (DEBUG) { console.error("✉️ ", error); }
+    return Promise.reject(error);
+});
+
+axios.interceptors.request.use((config) => {
+    config.headers.genericKey = "someGenericValue";
+    return config;
+}, (error) => {
+    return Promise.reject(error);
+});
+
+// for response
+axios.interceptors.response.use((response) => {
+    if (response.config.parse) {
+        //perform the manipulation here and change the response object
+    }
+    return response;
+}, (error) => {
+    return Promise.reject(error.message);
+});
+
+axios.interceptors.response.use((response) => {
+    if(response.status === 401) {
+        alert("You are not authorized");
+    }
+    return response;
+}, (error) => {
+    if (error.response && error.response.data) {
+        return Promise.reject(error.response.data);
+    }
+    return Promise.reject(error.message);
+});
+*/
 
 const FILE_API_PATH = "/api/file/"
 const NODE_API_PATH = "/api/node/"
@@ -27,8 +67,15 @@ const postData = function (url, data, options, successCallback, errorCallback) {
 
 const getData = function (url, data, options, successCallback, errorCallback) {
     options = _.merge(defaultOptions, options);
-    options.url = options.url + "?" + encodeURI(JSON.stringify(data));
-    axios.get(options)
+    if(data){
+        url = url+ "?";
+        Object.keys(data).forEach(key=>{
+            url= url+key+"="+data[key]+"&";
+        })
+    }
+    options.url = url; //+ "?" + encodeURI(JSON.stringify(data));
+    console.log(options);
+    axios.get(options.url,options)
         .then(successCallback)
         .catch(errorCallback)
 }
@@ -184,6 +231,23 @@ export default new Vuex.Store({
                 postData(
                     NODE_API_PATH + "getNodeById",
                     {nodeId},
+                    {},
+                    (response) => {
+                        console.log(response);
+                        resolve(response.data);
+                    },
+                    (error) => {
+                        console.error(error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        getNodeInfoById({state, getters, commit, dispatch}, nodeId) {
+            return new Promise((resolve, reject) => {
+                getData(
+                    NODE_API_PATH + "getNodeInfoById/"+nodeId,
+                    undefined,
                     {},
                     (response) => {
                         console.log(response);
@@ -459,11 +523,71 @@ export default new Vuex.Store({
             })
         },
 
-        streamContent({state, getters, commit, dispatch}, fileId) {
+        getCompressedNodes({state, getters, commit, dispatch}, nodesId) {
+            return new Promise((resolve, reject) => {
+                postData(
+                    NODE_API_PATH + "getCompressedNodes",
+                    nodesId,
+                    {},
+                    (response) => {
+                        console.log(response);
+                        resolve({
+                            contentType : response.headers["content-type"],
+                            data : response.data
+                        });
+                    },
+                    (error) => {
+                        console.error(error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        getCompressedFolder({state, getters, commit, dispatch}, folderId) {
             return new Promise((resolve, reject) => {
                 getData(
-                    FILE_API_PATH + "streamContent",
-                    {fileId},
+                    NODE_API_PATH + "getCompressedFolder/"+folderId,
+                    undefined,
+                    {},
+                    (response) => {
+                        console.log(response);
+                        resolve({
+                            contentType : response.headers["content-type"],
+                            data : response.data
+                        });
+                    },
+                    (error) => {
+                        console.error(error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        streamNodeContent({state, getters, commit, dispatch}, nodeId) {
+            return new Promise((resolve, reject) => {
+                getData(
+                    NODE_API_PATH + "streamContent/"+nodeId,
+                    undefined,
+                    {},
+                    (response) => {
+                        console.log(response);
+                        resolve({
+                            contentType : response.headers["content-type"],
+                            data : response.data
+                        });
+                    },
+                    (error) => {
+                        console.error(error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        streamFileContent({state, getters, commit, dispatch}, fileId) {
+            return new Promise((resolve, reject) => {
+                getData(
+                    FILE_API_PATH + "streamContent/"+fileId,
+                    undefined,
                     {},
                     (response) => {
                         console.log(response);
@@ -479,8 +603,8 @@ export default new Vuex.Store({
         getFileInfo({state, getters, commit, dispatch}, fileId) {
             return new Promise((resolve, reject) => {
                 getData(
-                    FILE_API_PATH + "getFileInfo",
-                    {fileId},
+                    FILE_API_PATH + "getFileInfo/"+fileId,
+                    undefined,
                     {},
                     (response) => {
                         console.log(response);

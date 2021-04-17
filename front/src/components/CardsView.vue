@@ -8,7 +8,7 @@
         <el-row v-else
                 v-for="row in dataRows"
                 type="flex"
-                :justify="row.length < nbr_cols_in_row ? 'start':'space-between'"
+                :justify="row.length < nbrOfColumnsInRow ? 'start':'space-between'"
         >
                 <el-col :span="6" v-for="node in row">
                     <div class="node-col">
@@ -56,19 +56,25 @@
                 return this.$store.getters.getCurrentNodeData;
             },
             dataRows() {
-                return _.chunk(this.data, this.nbr_cols_in_row);
+                return _.chunk(this.data, this.nbrOfColumnsInRow);
+            },
+            nbrOfColumnsInRow(){
+                return 4;//parseInt((this.$el.offsetWidth/200).toFixed(0),10) || this.nbr_cols_in_row;
             },
             /* ...mapGetters({
                  selectedNode:"getCurrentNodeDataData"
              }),*/
         },
         watch: {
+            $el(val){
+                console.log(val);
+            },
             dataRows(val){
                 this.selectedNodes = [];
             }
         },
         mounted() {
-
+            this.nbr_cols_in_row= parseInt((this.$el.offsetWidth/200).toFixed(0),10);
         },
         methods: {
             ...mapActions({

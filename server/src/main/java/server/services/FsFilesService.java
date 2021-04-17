@@ -46,8 +46,7 @@ public class FsFilesService {
     public GridFsResource getFileContent(String id){
         GridFSFile file = gridFsTemplate.findOne(new Query(Criteria.where("_id").is(id)));
         if(file==null){
-            logger.log(SEVERE, String.format("Could not found file with id %s %n", id));
-            throw new FileStorageException("Could not get file " + id );
+            return null;
         }
         return operations.getResource(file);
     }

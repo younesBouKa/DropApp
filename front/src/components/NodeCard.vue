@@ -3,13 +3,18 @@
         <el-card shadow="hover">
             <el-row>
                 <i :class="node.type==='FILE' ? 'el-icon-document' : 'el-icon-folder'"></i>
-                <el-col>
-                    <el-link :underline="false"
-                             @click="setCurrentNodeData(node)"
-                             style="cursor: pointer; margin-left: 10px;"
-                             disable-transitions>
-                        {{node.name}}
-                    </el-link>
+                <el-col style="margin-left: 5px; overflow: hidden;">
+                    <el-row class="node-name-row">
+                        <el-link :underline="false"
+                                 @click="setCurrentNodeData(node)"
+                                 style="cursor: pointer;"
+                                 disable-transitions>
+                            {{node.name}}
+                        </el-link>
+                    </el-row>
+                    <el-row class="node-description-row">
+                        <em class="node-path">{{node.path}}</em>
+                    </el-row>
                 </el-col>
             </el-row>
         </el-card>
@@ -71,7 +76,27 @@
     }
 
     .el-row{
+        overflow: hidden;
         display: flex;
         flex-direction: row;
     }
+
+    .node-description-row{
+        font-style: italic;
+        font-size: x-small;
+    }
+
+    .node-name-row >>> a, .node-path{
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .el-link{
+        display: unset;
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: left;
+    }
+
 </style>
