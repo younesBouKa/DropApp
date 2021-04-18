@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 import server.data.Node;
-import server.exceptions.FileStorageException;
+import server.exceptions.CustomException;
 import server.services.FsFilesService;
 import server.services.NodeService;
 
@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
+import static server.exceptions.Message.*;
 
 @RestController
 @RequestMapping("/api/file")
@@ -33,64 +34,49 @@ public class FileUploadController {
     NodeService nodeService;
 
     @PostMapping("/uploadFile")
-    public Node uploadFile(MultipartHttpServletRequest request) {
+    public Node uploadFile(MultipartHttpServletRequest request) throws Exception {
         logger.log(INFO, String.format("upload file %s %n", "fileWrapper.toString()"));
         HashMap<String, Object> map = new HashMap<>();
         Map<String, String[]> parameterMap = request.getParameterMap();
         parameterMap.forEach((name , values)-> map.put(name,request.getParameter(name)));
         MultipartFile file = request.getFile("file");
-        try {
-            return doUplaodFile(file, map);
-        } catch (IOException e) {
-            logger.log(SEVERE, String.format("Could not store file in DB %s %n", file.getOriginalFilename()));
-            throw new FileStorageException("Could not store file " + file.getOriginalFilename()
-                    + ". Please try again!");
-        } catch (Exception e) {
-            logger.log(SEVERE, String.format("File already exist with same name [%s] %n", file.getOriginalFilename()));
-            throw new FileStorageException("File already exist with same name [" + file.getOriginalFilename()+"]");
-        }
+        return doUploadFile(file, map);
     }
 
     @PostMapping("/uploadMultiFiles")
-    public List<Node> uploadMultiFiles(MultipartHttpServletRequest request) {
+    public List<Node> uploadMultiFiles(MultipartHttpServletRequest request) throws Exception {
         logger.log(INFO, String.format("upload files %s %n", "fileWrapper.toString()"));
         HashMap<String, Object> map = new HashMap<>();
         Map<String, String[]> parameterMap = request.getParameterMap();
         parameterMap.forEach((name , values)-> map.put(name,request.getParameter(name)));
         List<Node> nodes = new ArrayList<>();
-        request.getFileMap().forEach((name, file)->{
+        for (String name : request.getFileMap().keySet()){
+            MultipartFile file = request.getFileMap().get(name);
             map.put("name", file.getOriginalFilename().trim());
-            try {
-                nodes.add(doUplaodFile(file,map));
-            } catch (IOException e) {
-                logger.log(SEVERE, String.format("Could not store file in DB %s %n", file.getOriginalFilename()));
-            } catch (Exception e) {
-                logger.log(SEVERE, String.format("File already exist with same name %s %n", file.getOriginalFilename()));
-            }
-        });
+            nodes.add(doUploadFile(file,map));
+        }
         return nodes;
     }
 
     @GetMapping("/streamContent/{fileId}")
-    public void streamFileContent(@PathVariable String fileId, HttpServletRequest request,HttpServletResponse response){
+    public void streamFileContent(@PathVariable String fileId, HttpServletRequest request,HttpServletResponse response) throws Exception {
         logger.log(INFO, String.format("streaming file %s %n", fileId));
         GridFsResource file = fileService.getFileContent(fileId);
         try {
             FileCopyUtils.copy(file.getInputStream(), response.getOutputStream());
         } catch (IOException e) {
-            logger.log(SEVERE, String.format("Could not read file %s %n", file.getFilename()));
-            throw new FileStorageException("Could not read file " + file.getFilename()
-                    + ". Please try again!");
+            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", fileId, e.getMessage()));
+            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, fileId);
         }
     }
 
     @GetMapping("/getFileInfo/{fileId}")
-    public GridFsResource getFileInfo(@PathVariable String fileId,HttpServletRequest request) {
+    public GridFsResource getFileInfo(@PathVariable String fileId,HttpServletRequest request) throws Exception {
         logger.log(INFO, String.format("searching file %s %n", fileId));
         return fileService.getFileContent(fileId);
     }
 
-    public Node doUplaodFile(MultipartFile file, Map<String, Object> metaData) throws Exception {
+    public Node doUploadFile(MultipartFile file, Map<String, Object> metaData) throws Exception {
         boolean upsert = false;
         if(metaData.containsKey("upsert") && metaData.get("upsert")!=null && ((String[])metaData.get("upsert")).length>0)
             upsert = Boolean.getBoolean(((String[])metaData.get("upsert"))[0]);

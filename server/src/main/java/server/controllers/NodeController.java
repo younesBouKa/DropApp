@@ -1,13 +1,10 @@
 package server.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.gridfs.GridFsResource;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import server.data.Node;
-import server.data.Permission;
-import server.exceptions.FileStorageException;
+import server.exceptions.CustomException;
 import server.services.FsFilesService;
 import server.services.NodeService;
 
@@ -16,14 +13,12 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.INFO;
-import static java.util.logging.Level.SEVERE;
+import static java.util.logging.Level.*;
+import static server.exceptions.Message.*;
 
 @RestController
 @RequestMapping("/api/node")
@@ -36,20 +31,29 @@ public class NodeController {
     NodeService nodeService;
 
     @PostMapping(value = "/getNodeById")
-    public Node getNodeById(@RequestBody  Map<String, Object> body,  HttpServletRequest request) {
+    public Node getNodeById(@RequestBody  Map<String, Object> body,  HttpServletRequest request) throws CustomException {
         String nodeId = (String)body.getOrDefault("nodeId",null);
-        return nodeService.getNodeById(nodeId);
+        Node node = nodeService.getNodeById(nodeId);
+        if(node==null)
+            throw new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId);
+        return node;
     }
 
     @GetMapping("/getNodeInfoById/{fileId}")
-    public Node getNodeInfoById(@PathVariable String fileId,  HttpServletRequest request) {
-        return nodeService.getNodeInfoById(fileId);
+    public Node getNodeInfoById(@PathVariable String fileId,  HttpServletRequest request) throws CustomException {
+        Node node = nodeService.getNodeInfoById(fileId);
+        if(node==null)
+            throw new CustomException(NO_NODE_WITH_GIVEN_ID,fileId);
+        return node;
     }
 
     @PostMapping("/getNodeByPath")
-    public Node getNodeByPath(@RequestBody  Map<String, Object> body,  HttpServletRequest request) {
+    public Node getNodeByPath(@RequestBody  Map<String, Object> body,  HttpServletRequest request) throws Exception {
         String nodePath = (String)body.getOrDefault("nodePath",null);
-        return nodeService.getNodeByPath(nodePath);
+        Node node = nodeService.getNodeByPath(nodePath);
+        if(node==null)
+            throw new CustomException(NO_NODE_WITH_GIVEN_PATH, nodePath);
+        return node;
     }
 
     @PostMapping("/getNodesByParentId")
@@ -69,14 +73,20 @@ public class NodeController {
     }
 
     @PostMapping("/createFolderNodeWithMetaData")
-    public Node createFolderWithMetaData(@RequestBody Map<String, Object> metaData, HttpServletRequest request) {
-        return nodeService.createFolder(metaData);
+    public Node createFolderWithMetaData(@RequestBody Map<String, Object> metaData, HttpServletRequest request) throws Exception {
+        Node node = nodeService.createFolder(metaData);
+        if(node==null)
+            throw new CustomException(CANT_CREATE_FOLDER, metaData);
+        return node;
     }
 
     @PostMapping("/createFolderNodeByPath")
-    public Node createFolderWithPath(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Node createFolderWithPath(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
         String path = (String)body.getOrDefault("path",null);
-        return nodeService.createFolderFromPath(path);
+        Node node = nodeService.createFolderFromPath(path);
+        if(node==null)
+            throw new CustomException(CANT_CREATE_FOLDER_FROM_PATH, path);
+        return node;
     }
 
     @PostMapping("/deleteNodeByPath")
@@ -100,7 +110,7 @@ public class NodeController {
         return nodeService.deleteNodesByIds(nodesId, recursive);
     }
 
-    @PostMapping("/hasPermissionById")
+    /*@PostMapping("/hasPermissionById")
     public boolean hasPermissionById(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         String nodeId = (String)body.getOrDefault("nodeId",null);
         Object permission = body.getOrDefault("permission", Permission.READ_WRITE);
@@ -112,7 +122,7 @@ public class NodeController {
         String nodePath = (String)body.getOrDefault("nodePath",null);
         Object permission = body.getOrDefault("permission", Permission.READ_WRITE);
         return nodeService.hasPermissionByPath(nodePath,permission);
-    }
+    }*/
 
     @PostMapping("/copyNodeByPath")
     public Node copyNodeByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
@@ -143,53 +153,56 @@ public class NodeController {
     }
 
     @GetMapping("/streamContent/{nodeId}")
-    public void streamFileContent(@PathVariable String nodeId, HttpServletRequest request, HttpServletResponse response){
+    public void streamFileContent(@PathVariable String nodeId, HttpServletRequest request, HttpServletResponse response) throws Exception {
         logger.log(INFO, String.format("streaming node content %s %n", nodeId));
         Node node = nodeService.getNodeInfoById(nodeId);
+        if(node==null)
+            throw new CustomException(NO_NODE_WITH_GIVEN_ID, nodeId);
+        response.setHeader("content-type",node.getContentType());
         try {
-            response.setHeader("content-type",node.getContentType());
             FileCopyUtils.copy(node.getContent(), response.getOutputStream());
-        } catch (Exception e) {
-            logger.log(SEVERE, String.format("Could not read node %s %n", node.getName()));
-            throw new FileStorageException("Could not read node " + node.getName() + ". Please try again!");
+        } catch (IOException e) {
+            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", node.getName(), e.getMessage()));
+            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, node.getName());
         }
     }
 
     @GetMapping("/getCompressedFolder/{folderId}")
-    public void getCompressedFolder(@PathVariable String folderId, HttpServletRequest request, HttpServletResponse response){
+    public void getCompressedFolder(@PathVariable String folderId, HttpServletRequest request, HttpServletResponse response) throws Exception {
         logger.log(INFO, String.format("streaming zip content %s %n", folderId));
         File zipFile = nodeService.zipFolderContentById(folderId, null);
         try {
             response.setHeader("content-type", Files.probeContentType(zipFile.toPath()));
             FileCopyUtils.copy(Files.readAllBytes(zipFile.toPath()), response.getOutputStream());
         } catch (Exception e) {
-            logger.log(SEVERE, String.format("Could not read node %s %n", folderId));
-            throw new FileStorageException("Could not read node " + folderId + ". Please try again!");
+            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", folderId, e.getMessage()));
+            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, folderId);
         } finally {
             deleteFile(zipFile);
         }
     }
 
     @PostMapping("/getCompressedNodes")
-    public void getCompressedNodes(@RequestBody List<String> nodesId, HttpServletRequest request, HttpServletResponse response){
+    public void getCompressedNodes(@RequestBody List<String> nodesId, HttpServletRequest request, HttpServletResponse response) throws Exception {
         logger.log(INFO, String.format("streaming zip content %s %n", nodesId));
         File zipFile = nodeService.zipNodesById(nodesId, null);
         try {
             response.setHeader("content-type", Files.probeContentType(zipFile.toPath()));
             FileCopyUtils.copy(Files.readAllBytes(zipFile.toPath()), response.getOutputStream());
         } catch (Exception e) {
-            logger.log(SEVERE, String.format("Could not read node %s %n", nodesId));
-            throw new FileStorageException("Could not read node " + nodesId + ". Please try again!");
+            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", nodesId, e.getMessage()));
+            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, nodesId);
         }finally {
             deleteFile(zipFile);
         }
     }
 
-    public void deleteFile(File file){
+    public void deleteFile(File file) throws Exception {
         try {
             Files.deleteIfExists(file.toPath());
         } catch (Exception e) {
             logger.log(SEVERE, String.format("Error while deleting file: %s, Error: %s%n", file.getName(),e.getMessage()));
+            throw new CustomException(ERROR_WHILE_DELETING_FILE, file);
         }
     }
 }

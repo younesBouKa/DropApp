@@ -13,21 +13,21 @@ import org.springframework.web.multipart.MultipartFile;
 import server.data.Node;
 import server.data.NodeType;
 import server.data.Permission;
+import server.exceptions.CustomException;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static java.util.logging.Level.SEVERE;
+import static java.util.logging.Level.WARNING;
+import static server.exceptions.Message.*;
 
 @Service
 public class NodeService {
@@ -84,7 +84,7 @@ public class NodeService {
         return upsertOneNode(new Node());
     }
 
-    public Node getNodeInfoById(String nodeId) {
+    public Node getNodeInfoById(String nodeId) throws CustomException {
         if (nodeId == null)
             return null;
         Node node = getNodeById(nodeId);
@@ -100,20 +100,19 @@ public class NodeService {
                     long contentLength = 0;
                     try {
                         contentType = file.getContentType();
+                    } catch (Exception e) {
+                        logger.log(WARNING, new CustomException(NO_CONTENT_TYPE_FOR_NODE,node.getName()).getMessage());
+                    }
+                    try {
                         contentLength = file.contentLength();
                     } catch (Exception e) {
-                        logger.log(SEVERE, String.format("Error while extracting info of file %s, Error: %s", node.getName() ,e.getMessage()));
+                        logger.log(WARNING, new CustomException(NO_CONTENT_SIZE_FOR_NODE,node.getName()).getMessage());
                     }
                     node.setFileSize(contentLength ==0 ? node.getFileSize(): contentLength);
                     node.setContentType(contentType == null ? node.getContentType() : contentType);
                 }
             }
         }
-        /*// setting children
-        if(node.isFolder()){
-            List<Node> children = getNodesByParentId(node.getId());
-            node.setChildren(children);
-        }*/
         // setting parent
         if (node.getParentId() != null) {
             Node parent = getNodeById(node.getParentId());
@@ -199,7 +198,7 @@ public class NodeService {
                 List<Node> children = getNodesByParentId(node.getId());
                 count = count + children.stream()
                         .map(child -> deleteNodeById(child.getId(), true))
-                        .reduce((acc, co) -> co + acc).orElse(0l);
+                        .reduce(Long::sum).orElse(0L);
             }
         }
         // TODO should i fire an exception if recursive=false and node if folder ?!
@@ -259,7 +258,6 @@ public class NodeService {
         String[] pathParts = nodePath.split(Node.SEPARATOR);
         Node currentNode = null;
         Node parentNode = getRoot();
-        int length = pathParts.length;
         String path = getRoot().getPath();
         for (String pathPart : pathParts) {
             if (pathPart.isEmpty())
@@ -277,7 +275,7 @@ public class NodeService {
         return currentNode;
     }
 
-    public Node createFile(MultipartFile file, Map<String, Object> metaData, boolean upsert) throws Exception {
+    public Node createFile(MultipartFile file, Map<String, Object> metaData, boolean upsert) throws CustomException {
         Node parentNode = null;
         if (metaData.get("parentId") != null) {
             parentNode = getNodeById((String) metaData.get("parentId"));
@@ -309,7 +307,7 @@ public class NodeService {
         if (nodeInDb != null && upsert) {
             node.setId(nodeInDb.getId());
         } else if (nodeInDb != null) {
-            throw new Exception("file already exist with same name");
+            throw new CustomException(FILE_ALREADY_EXISTS_WITH_SAME_PATH, path);
         }
         ObjectId id = fileService.saveFile(file, node);
         node.setFileId(id.toString());
@@ -318,16 +316,16 @@ public class NodeService {
 
    /****************** copy and move node ************************/
 
-    public Node copyNodeWithPath(String srcPath, String destPath, boolean move) throws Exception {
+    public Node copyNodeWithPath(String srcPath, String destPath, boolean move) throws CustomException {
         if (!existsWithPath(srcPath))
-            throw new Exception("no node with source path: " + srcPath);
+            throw new CustomException(NO_NODE_WITH_GIVEN_SOURCE_PATH,srcPath);
         Node srcNode = getNodeByPath(srcPath);
         Node destNode = getNodeByPath(destPath);
         if (destNode == null) {
             destNode = createFolderFromPath(destPath);
         }
         if (destNode == null)
-            throw new Exception("can't create node with destination path: " + destPath);
+            throw new CustomException(CANT_CREATE_NODE_WITH_GIVEN_DESTINATION_PATH, destPath);
         destPath = destNode.getPath();
 
         if (srcNode.isFolder() && destNode.isFolder()) {
@@ -337,20 +335,16 @@ public class NodeService {
             folderCopy.setPath(concatTwoPaths(destPath, folderCopy.getName()));
             Node createdFolderCopy = upsertOneNode(folderCopy);
             if (createdFolderCopy == null)
-                return null;
+                throw new CustomException(CANT_CREATE_FOLDER_COPY, folderCopy.getPath());
             if (move)
                 deleteNodeById(srcNode.getId(), false);
             // copy children
             List<Node> children = getNodesByParentId(srcNode.getId());
             Node finalDestNode = createdFolderCopy;
-            children.stream().forEach(child -> {
+            for(Node child : children){
                 String dest = concatTwoPaths(finalDestNode.getPath(), child.getName());
-                try {
-                    copyNodeWithPath(child.getPath(), dest, move);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
+                copyNodeWithPath(child.getPath(), dest, move);
+            }
             return createdFolderCopy;
         } else if (srcNode.isFile()) {
             // copy file
@@ -365,20 +359,20 @@ public class NodeService {
             }
             Node createdFileCopy = upsertOneNode(fileCopy);
             if (createdFileCopy == null)
-                return null;
+                throw new CustomException(CANT_CREATE_FILE_COPY, fileCopy.getPath());
             if (move)
                 deleteNodeById(srcNode.getId(), false);
             return createdFileCopy;
         } else {
-            throw new Exception(String.format("You are trying to copy  folder %s  to file %s ", srcNode.getPath(), destNode.getPath()));
+            throw new CustomException(CANT_COPY_FOLDER_TO_FILE, srcNode.getPath(), destNode.getPath());
         }
     }
 
-    public Node copyNodeWithId(String srcId, String destId, boolean move) throws Exception {
+    public Node copyNodeWithId(String srcId, String destId, boolean move) throws CustomException {
         Node srcNode = getNodeById(srcId), destNode = getNodeById(destId);
-        if (srcNode != null && destNode != null)
-            return copyNodeWithPath(srcNode.getPath(), destNode.getPath(), move);
-        return null;
+        if (srcNode == null || destNode == null)
+            throw new CustomException(NO_NODE_WITH_GIVEN_ID, srcNode==null? srcId : destId);
+        return copyNodeWithPath(srcNode.getPath(), destNode.getPath(), move);
     }
 
     /****************** duplicate node ************************/
@@ -397,51 +391,41 @@ public class NodeService {
     }
 
     /***************** compress content **********************/
-    public InputStream getFileStream(File file){
-        //byte[] bytes = new byte[(int) file.length()];
-        BufferedInputStream bis = null;
-        try {
-            bis = new BufferedInputStream(new FileInputStream(file));
-            //bis.read(bytes);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        return bis;
-    }
-    public File zipNodesById(List<String> nodesId, String zipPath){
-        if(nodesId==null || nodesId.size()==0)
-            return null;
+    public File zipNodesById(List<String> nodesId, String zipPath) throws CustomException {
+        if(nodesId==null)
+            throw new CustomException(NULL_PARAMS, "nodesId");
+        if(nodesId.size()==0)
+            throw new CustomException(EMPTY_PARAMS, "nodesId");
         List<Node> children = new ArrayList<>();
-        nodesId
-                .forEach(id->{
-                    Node node = getNodeInfoById(id);
-                    if(node!=null)
-                        children.add(node);
-                });
+        for (String id: nodesId){
+            Node node = getNodeInfoById(id);
+            if(node!=null)
+                children.add(node);
+        }
         if(children.size()==0)
-            return null;
+            throw new CustomException(EMPTY_RESULT, nodesId);
         zipPath = zipPath!=null
                 ? zipPath
                 : children.get(0).getName().replaceAll("\\.","_")+".zip";
         return zipNodes(children, zipPath);
     }
 
-    public File zipFolderContentById(String folderId, String zipPath){
+    public File zipFolderContentById(String folderId, String zipPath) throws CustomException {
         if(folderId==null)
-            return null;
+            throw new CustomException(NULL_PARAMS, "folderId");
         Node folderNode = getNodeById(folderId);
         if(folderNode==null)
-            return null;
+            throw new CustomException(NO_NODE_WITH_GIVEN_ID, folderId);
         List<Node> children = getNodesByParentId(folderId);
         if(children==null || children.size()==0)
-            return null;
+            throw new CustomException(EMPTY_RESULT, folderId);
         zipPath = zipPath!=null
                 ? zipPath
                 : folderNode.getName().replaceAll("\\.","_")+".zip";
         return zipNodes(children, zipPath);
     }
 
-    public File zipNodes(List<Node> nodes, String zipPath) {
+    public File zipNodes(List<Node> nodes, String zipPath) throws CustomException {
         try {
             Path path = Paths.get(zipPath);
             if (!Files.exists(path)) {
@@ -465,20 +449,22 @@ public class NodeService {
                             zos.closeEntry();
                             return zipEntry;
                         } catch (Exception e) {
-                            logger.log(SEVERE,
-                                    String.format("Error putting file in the zip : %s, Error: %s %n", node.getName(), e.getMessage())
-                            );
+                            logger.log(SEVERE, String.format("Error putting file in the zip : %s, Error: %s %n", node.getName(), e.getMessage()));
                         }
                         return null;
                     })
-                    .collect(Collectors.toList());
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+            if(entries.size()==0)
+                throw new CustomException(ERROR_WHILE_ZIPPING_FILE, zipPath);
             zos.close();
             return path.toFile();
         } catch (FileNotFoundException e) {
-            logger.log(SEVERE, String.format("Error creating zip file : %s %n", e.getMessage()));
+            logger.log(SEVERE, String.format("Error while zipping : %s, Error: %s %n",zipPath, e.getMessage()));
+            throw new CustomException(ZIP_FILE_PATH_NOT_FOUND, zipPath);
         } catch (IOException e) {
-            logger.log(SEVERE, String.format("Error while zipping files : %s %n", e.getMessage()));
+            logger.log(SEVERE, String.format("Error while zipping : %s, Error: %s %n",zipPath, e.getMessage()));
+            throw new CustomException(ERROR_WHILE_ZIPPING_FILE, zipPath);
         }
-        return null;
     }
 }
