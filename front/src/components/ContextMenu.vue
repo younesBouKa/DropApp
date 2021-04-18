@@ -87,7 +87,7 @@
                 this.$bus.$emit("create_folder",undefined);
             },
             openMenu(event) {
-                console.log("open menu: ");
+                console.log("open menu: ", event);
                 const menuWidth = 100;
                 const menuHeight = 100;
                 console.log(`menu width: ${menuWidth} , height: ${menuHeight}`);

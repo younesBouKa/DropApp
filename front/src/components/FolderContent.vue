@@ -19,15 +19,18 @@
                     <el-divider direction="vertical" v-show="activateBackward || activateForward"></el-divider>
 
                     <el-button @click="enableUpload=!enableUpload" size="mini" :type="!enableUpload? 'success' : 'warning'" icon="el-icon-upload2" title="Upload file" circle></el-button>
-                    <el-button @click="download" v-show="selectedNodes.length>0" :disabled="selectedNodes.length===0" size="mini" icon="el-icon-download" title="Download" circle></el-button>
+                    <el-button @click="download" v-show="nodesAreSelected" :disabled="!nodesAreSelected" size="mini" icon="el-icon-download" title="Download" circle></el-button>
                     <el-button @click="openCreateFolderDialog" type="primary" size="mini" icon="el-icon-folder-add" title="Create folder" circle></el-button>
                     <el-divider direction="vertical"></el-divider>
 
-                    <el-button @click="pasteNodes" v-show="nodesInClipBoard.length>0" :disabled="nodesInClipBoard.length===0" size="mini" icon="el-icon-receiving" title="Coller" circle></el-button>
-                    <el-button @click="moveNodes('CUT')" v-show="selectedNodes.length>0" :disabled="selectedNodes.length===0" size="mini" type="warning" icon="el-icon-scissors" title="Couper" circle></el-button>
-                    <el-button @click="moveNodes" v-show="selectedNodes.length>0" :disabled="selectedNodes.length===0" size="mini" type="info" icon="el-icon-document-copy" title="Copier" circle></el-button>
-                    <el-button @click="deleteNodes" v-show="selectedNodes.length>0" size="mini" type="danger" icon="el-icon-delete" title="Delete Selected nodes" circle></el-button>
-                    <el-divider direction="vertical" v-show="nodesInClipBoard.length>0 || selectedNodes.length>0"></el-divider>
+                    <el-button @click="shareNode" v-show="nodesAreSelected" :disabled="!nodesAreSelected" size="mini" icon="el-icon-share" title="Partager" circle></el-button>
+                    <el-divider direction="vertical"></el-divider>
+
+                    <el-button @click="pasteNodes" v-show="nodesAreInClipBoard" :disabled="!nodesAreInClipBoard" size="mini" icon="el-icon-receiving" title="Coller" circle></el-button>
+                    <el-button @click="moveNodes('CUT')" v-show="nodesAreSelected" :disabled="!nodesAreSelected" size="mini" type="warning" icon="el-icon-scissors" title="Couper" circle></el-button>
+                    <el-button @click="moveNodes" v-show="nodesAreSelected" :disabled="!nodesAreSelected" size="mini" type="info" icon="el-icon-document-copy" title="Copier" circle></el-button>
+                    <el-button @click="deleteNodes" v-show="nodesAreSelected" size="mini" type="danger" icon="el-icon-delete" title="Delete Selected nodes" circle></el-button>
+                    <el-divider direction="vertical" v-show="nodesAreInClipBoard || nodesAreSelected"></el-divider>
 
                     <el-button @click="isListView=!isListView" size="mini"  :icon="isListView?'el-icon-files':'el-icon-s-grid'" title="Switch views" circle></el-button>
                     <el-button @click="loadFolderContent" size="mini" type="info" icon="el-icon-refresh-right" title="Refresh" circle></el-button>
@@ -35,7 +38,10 @@
                 </div>
             </el-col>
         </el-row>
-        <el-row class="content" >
+        <el-row class="content"
+                @dragover.prevent.native="onDragOver($event)"
+                @drop.prevent.native="onDrop($event)"
+        >
             <UploadFiles v-if="canUploadFileInFolder"></UploadFiles>
             <TableView v-else-if="isListView && isCurrentNodeFolder" @selectionChanged="selectionChanged" :rows="data" :columns="columnsToShow"></TableView>
             <CardsView v-else-if="isCurrentNodeFolder" @selectionChanged="selectionChanged" :data="dataRows"></CardsView>
@@ -107,6 +113,9 @@
             canUploadFileInFolder(){
                 return this.enableUpload //|| this.isFolderEmpty;
             },
+            nodesAreSelected(){
+                return this.selectedNodes && this.selectedNodes.length>0;
+            },
             permissionsOptions() {
                 return this.$store.getters.getPermissionOptions;
             },
@@ -160,6 +169,9 @@
             nodesInClipBoard(){
               return this.$store.getters.getNodesInClipBoard;
             },
+            nodesAreInClipBoard(){
+                return this.nodesInClipBoard && this.nodesInClipBoard.length>0;
+            },
             activateForward(){
                 if(this.foldersHistory.length>0){
                     let index = this.foldersHistory.findIndex(elt=> elt.id === this.currentNodeData.id);
@@ -173,10 +185,7 @@
                     return index!==-1 && index>0;
                 }
                 return false;
-            }
-           /* ...mapGetters({
-                currentNodeData:"getCurrentNodeData"
-            }),*/
+            },
         },
         watch: {
             currentNodeData(val) {
@@ -202,6 +211,18 @@
         mounted() {
             this.loadFolderContent();
             let self = this;
+            this.$bus.$on("node_moved", function (payLoad) {
+                console.log("on node_moved",payLoad);
+                let srcNode = payLoad.srcNode,
+                    destNode = payLoad.targetNode;
+                if(destNode.id===self.currentNodeData.id){
+                    self.data.push(srcNode);
+                }else if(srcNode.parentId === self.currentNodeData.id){
+                    let index = self.data.findIndex(elt=> elt.id=== srcNode.id);
+                    if(index!==-1)
+                        self.data.splice(index,1);
+                }
+            });
             this.$bus.$on("files_uploaded", function (payLoad) {
                 (payLoad||[]).forEach(node=>{
                     if(node.parentId===self.currentNodeData.id){
@@ -233,20 +254,23 @@
                 getNodesByParentId: 'getNodesByParentId',
                 deleteNodesById: 'deleteNodesById',
             }),
+
             loadFolderContent() {
-                console.log("loadFolderContent : "+this.currentNodeData);
+                console.log("loadFolderContent : ",this.currentNodeData);
                 this.data = [];
                 let folderId = this.folderId || this.currentNodeData.id;
-                if (!folderId || folderId==="")
+                if (!folderId || folderId===""){
                     return;
+                }
+
                 this.$store.dispatch("getNodesByParentId",folderId)
                     .then(nodes => {
-                        console.log(nodes);
+                        console.log("loadFolderContent",nodes);
                         this.data = nodes;
                         this.selectedNodes=[];
                     })
                     .catch(err => {
-                        console.error(error);
+                        console.error("loadFolderContent",error);
                         this.$message({
                             message: error,
                             type: 'error'
@@ -262,10 +286,11 @@
             selectionChanged(list){
                 this.selectedNodes = list;
             },
+
             deleteNodes(){
                 console.log("deleteNodes", this.selectedNodes);
                 let self = this;
-                if(this.selectedNodes.length===0)
+                if(!this.nodesAreSelected)
                     return;;
                 this.$confirm(`Voulez vous supprimer '${this.selectedNodes.map(e=>e.name).join(",")}' nodes ?`,'Warning', {
                     confirmButtonText: 'OK',
@@ -276,7 +301,7 @@
                         let nodesId = self.selectedNodes.map(elt=> elt.id);
                         self.$store.dispatch("deleteNodesById",{nodesId, recursive:true})
                             .then(ids=>{
-                                console.log(ids);
+                                console.log("deleteNodesById",ids);
                                 if(ids.length>0){
                                     let deletedNodes = self.selectedNodes
                                         .filter(el=> _.findIndex(ids, (o)=> o === el.id)!==-1)
@@ -304,7 +329,7 @@
             },
             moveNodes(operation){
                 console.log("copyNodes : ",this.selectedNodes);
-                if(this.selectedNodes.length>0)
+                if(this.nodesAreSelected)
                     this.$store.commit("setNodesInClipBoard",this.selectedNodes,operation||"COPY");
             },
             pasteNodes(){
@@ -325,9 +350,14 @@
                         });
                     });
             },
+            shareNode(){
+                console.log("share node: ", this.selectedNodes);
+            },
+
             openCreateFolderDialog(){
                 this.$bus.$emit("create_folder",undefined);
             },
+
             download(){
                 console.log("download: ", this.selectedNodes);
                 // if one file is selected
@@ -470,6 +500,14 @@
                 }
             },
 
+            onDragOver(event){
+                event.preventDefault();
+                this.enableUpload = true;
+            },
+            onDrop(event){
+                event.preventDefault();
+                this.enableUpload = true;
+            }
         }
     }
 </script>

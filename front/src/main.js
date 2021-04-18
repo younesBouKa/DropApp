@@ -5,6 +5,7 @@ import store from './store'
 import ElementUI from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
 import EventBus from './event-bus';
+import Logger from './services/Logger';
 
 import {
   Pagination,
@@ -174,6 +175,18 @@ Vue.prototype.$bus = EventBus;
 Vue.use(ElementUI);
 Vue.config.productionTip = false
 
+// config logger
+let logger = new Logger({
+  url : '/log/front',
+  batch_size : 100,
+});
+
+// activate logger
+//console= logger;
+
+window.onerror = function(message, file, line) {
+  console.log('An error occurred at line ' + line + ' of ' + file + ': ' + message);
+};
 new Vue({
   router,
   store,

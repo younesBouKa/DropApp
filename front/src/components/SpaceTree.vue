@@ -27,6 +27,7 @@
                 @node-click="handleNodeClick"
                 @check="onCheck"
                 @current-change="handleCurrentChange"
+                @node-drop="onNodeDrop"
                 :highlight-current="true"
                 accordion
                 lazy
@@ -80,7 +81,8 @@
                     path: "path",
                     nodeKey: "id"
                 },
-                defaultExpandedKeys: []
+                defaultExpandedKeys: [],
+                loading : undefined,
             }
         },
         computed: {
@@ -99,7 +101,6 @@
                 this.$refs.tree.filter(val);
             },
             currentNodeData(val) {
-                console.log(this.$refs.tree.root);
                 if (val.id && this.defaultExpandedKeys.indexOf(val.id) === -1)
                     this.defaultExpandedKeys = [val.id];
             },
@@ -111,7 +112,14 @@
             }
         },
         mounted() {
-            this.getRootFolder();
+            this.getRootFolder()
+                .catch(error=>{
+                    console.error(error);
+                    this.$message({
+                        message: error,
+                        type: 'error'
+                    });
+                });
             let self = this;
             this.$bus.$on("files_uploaded", function (payLoad) {
                 (payLoad||[]).forEach(node=>{
@@ -140,16 +148,26 @@
                 'getNodesByParentId',
                 'createFolderNodeWithMetaData',
             ]),
+
             openCreateFolderDialog(){
                 this.$bus.$emit("create_folder",undefined);
             },
             refreshTree(){
                 let selectedNode = this.currentNodeData;
                 let self = this;
-                this.getRootFolder().then(parent=>{
-                    self.defaultExpandedKeys.push(selectedNode.id);
-                });
+                this.getRootFolder()
+                    .then(parent=>{
+                        self.defaultExpandedKeys.push(selectedNode.id);
+                    })
+                    .catch(error=>{
+                        console.error("getRootFolder",error);
+                        this.$message({
+                            message: error,
+                            type: 'error'
+                        });
+                    });
             },
+
             deleteCurrentNode(){
                 let self = this;
                 this.$confirm(`Voulez vous supprimer '${this.currentNodeData.name}' ?`,'Warning', {
@@ -158,9 +176,9 @@
                     type: 'warning'
                 })
                     .then(yes=>{
-                        self.deleteNodeById(self.currentNodeData.id,true)
+                        self.$store.dispatch("deleteNodeById",{nodeId: self.currentNodeData.id, recursive: true})
                             .then(count=>{
-                                console.log(count);
+                                console.log("deleteCurrentNode",count);
                                 this.$message({
                                     message: `'${this.currentNodeData.name}' supprimé avec succes`,
                                     type: 'success'
@@ -170,7 +188,7 @@
                                 self.refreshTree();
                             })
                             .catch(error=>{
-                                console.error(error);
+                                console.error("deleteCurrentNode",error);
                                 this.$message({
                                     message: error,
                                     type: 'error'
@@ -183,9 +201,9 @@
                 let self = this;
                 let rootPath = this.rootPath || "/";
                 return new Promise((resolve, reject) => {
-                    self.getNodeByPath(rootPath)
+                    self.$store.dispatch("getNodeByPath",rootPath)
                         .then(data => {
-                            console.log(data);
+                            console.log("getRootFolder",data);
                             if (data) {
                                 self.rootFolder = data;
                                 self.data.push(data);
@@ -194,24 +212,12 @@
                             }
                             resolve(data);
                         }).catch(err => {
-                            console.error(err);
+                            console.error("getRootFolder",err);
                             reject(err);
                         });
                 });
             },
-            append(data) {
-                const newChild = {id: id++, label: 'testtest', children: []};
-                if (!data.children) {
-                    this.$set(data, 'children', []);
-                }
-                data.children.push(newChild);
-            },
-            remove(node, data) {
-                const parent = node.parent;
-                const children = parent.data.children || parent.data;
-                const index = children.findIndex(d => d.id === data.id);
-                children.splice(index, 1);
-            },
+
             filterNode(value, data, node) {
                 console.log(`filterNode : `, value, data);
                 if (!value) return true;
@@ -227,18 +233,27 @@
                 this.$store.commit("storeCurrentNodeElement", node);
                 this.$store.dispatch("storeRootElement",this.$refs.tree.root);
             },
+
             updateRootElement(){
                 this.$store.dispatch("storeRootElement",this.$refs.tree.root);
             },
+
             loadNode(node, resolve) {
                 console.log(`loadNode: `, node);
-                this.getNodesByParentId(node.data.id)
+                if(!node || !node.data || !node.data.id)
+                    return;
+                this.$store.dispatch("getNodesByParentId",node.data.id)
                     .then(nodes => {
-                        console.log(nodes);
+                        console.log("loadNode",nodes);
                         nodes = nodes.sort(this.sortByFolderFirst);
                         resolve(nodes);
                     })
-                    .catch(err => {
+                    .catch(error => {
+                        console.error("loadNode",error);
+                        this.$message({
+                            message: error,
+                            type: 'error'
+                        });
                         resolve([]);
                     });
             },
@@ -247,32 +262,64 @@
                 Le noeud modifié,
                 l'objet statut de l'arbre avec quatre propriétés: checkedNodes, checkedKeys, halfCheckedNodes, halfCheckedKeys.
                 */
-                console.log(`oncheck : `, node, status);
+                //console.log(`oncheck : `, node, status);
             },
+
             onNodeDrop(movedNode, destNode, moveType) {
-                /*
-                Le noeud déplacé, le noeud d'arrivée, le type de placement (before / after / inner), l'évènement.
-                 */
-                console.log(`onNodeDrop : `, movedNode, destNode, moveType)
+                // Le noeud déplacé, le noeud d'arrivée, le type de placement (before / after / inner), l'évènement.
+                console.log(`onNodeDrop : `, movedNode, destNode, moveType);
+                if(destNode.data.file && moveType==="inner")
+                    return;
+                let srcNode = movedNode.data,
+                    targetNode;
+                if(moveType==="inner")
+                    targetNode = destNode.data;
+                else
+                    targetNode = destNode.parent.data;
+                // confirm move operation
+                let self = this;
+                this.$confirm(`Do you want to move: '${srcNode.name}' to: '${targetNode.name}' ?`, "Warning", {
+                    confirmButtonText: 'OK',
+                    cancelButtonText: 'Annuler',
+                    type: 'warning'
+                })
+                    .then(yes =>{
+                        self.loading = this.$loading({
+                            lock: true,
+                            text: 'Loading',
+                            spinner: 'el-icon-loading',
+                            background: 'rgba(0, 0, 0, 0.7)'
+                        });
+                        return self.$store.dispatch("moveNodeById",{srcId: srcNode.id, destId: targetNode.id});
+                    })
+                    .then(response=>{
+                        console.log("moveNodeById",response);
+                        this.$message({
+                            message: 'Node "'+srcNode.name+'" moved to "'+targetNode.name+'" width success.',
+                            type: 'success'
+                        });
+                        self.$bus.$emit("node_moved",{srcNode, targetNode});
+                    })
+                    .catch(error=>{
+                        console.error("moveNodeById",error);
+                        this.$message({
+                            message: error,
+                            type: 'error'
+                        });
+                    })
+                    .finally(()=>{
+                        if(self.loading)
+                            self.loading.close();
+                    });
             },
             allowDrag(node) {
-                console.log(`allowDrag : `, node);
+                //console.log(`allowDrag : `, node);
                 return true;
             },
             allowDrop(draggingNode, dropNode, type) {
-                console.log(`allowDrop : `, draggingNode, dropNode, type);
-                return true;
-            },
-            openFullScreen2() {
-                const loading = this.$loading({
-                    lock: true,
-                    text: 'Loading',
-                    spinner: 'el-icon-loading',
-                    background: 'rgba(0, 0, 0, 0.7)'
-                });
-                setTimeout(() => {
-                    loading.close();
-                }, 2000);
+                //console.log(`allowDrop : `, draggingNode, dropNode, type);
+                return !(dropNode.data.file && type === "inner");
+
             }
         }
     }

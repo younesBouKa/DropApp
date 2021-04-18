@@ -11,13 +11,13 @@
             :on-progress="onProgress"
             :on-success="onSuccess"
             :on-error="onError"
-            :limit="3"
+            :limit="limitFiles"
             :on-exceed="handleExceed"
             :file-list="fileList"
             :show-file-list="false"
             multiple>
-        <i class="el-icon-upload"></i>
-        <div class="el-upload__text">Déposer les fichiers ici ou<em>&nbsp;cliquez pour envoyer</em></div>
+        <i style="color: #67c23a" class="el-icon-upload"></i>
+        <div class="el-upload__text">Déposer les fichiers ici ou<em>&nbsp;cliquez pour choisir</em></div>
     </el-upload>
 </template>
 
@@ -33,6 +33,7 @@
                 fileList: [],
                 data : {"toto":"test"},
                 loading : undefined,
+                limitFiles: 3,
             }
         },
         computed: {
@@ -48,9 +49,6 @@
             canUploadFileInFolder(){
                 return this.isCurrentNodeFolder && this.isEmptyFolder;
             },
-            /* ...mapGetters({
-                 currentNode:"getCurrentNodeData"
-             }),*/
         },
         methods: {
             beforeUpload(file) {
@@ -67,7 +65,6 @@
                         cancelButtonText: 'Annuler',
                         type: 'warning'
                     }).then(yes =>{
-                        console.log(yes);
                         self.loading = this.$loading({
                             lock: true,
                             text: 'Loading',
@@ -76,7 +73,6 @@
                         });
                         resolve();
                     }).catch(no=>{
-                        console.log(no);
                         reject();
                     });
                 });
@@ -88,14 +84,15 @@
                 console.log(`handlePreview :`,file);
             },
             handleExceed(files, fileList) {
-                this.$message.warning(`La limite est 3, vous avez choisi '${files.length}' fichiers, soit ${files.length + fileList.length} au total.`);
+                this.$message.warning(`La limite est ${this.limitFiles}, vous avez choisi '${files.length}' fichiers, soit ${files.length + fileList.length} au total.`);
             },
             beforeRemove(file, fileList) {
-                return this.$confirm(`Supprimer le transfert de '${file.name}' ?`,'Warning', {
+                return true;
+                /*this.$confirm(`Supprimer le transfert de '${file.name}' ?`,'Warning', {
                     confirmButtonText: 'OK',
                     cancelButtonText: 'Annuler',
                     type: 'warning'
-                });
+                });*/
             },
             onProgress(event, file, fileList){
                 console.log(`onProgress :`,event,file,fileList);
@@ -110,10 +107,14 @@
                 });
                 this.$bus.$emit("files_uploaded",response);
             },
-            onError(err, file, fileList){
-                console.log(`onError :`,err,file,fileList);
+            onError(error, file, fileList){
+                console.log(`onError :`,error,file,fileList);
                 if(this.loading)
                     this.loading.close();
+                this.$message({
+                    message: error,
+                    type: 'error'
+                });
             }
         },
         mounted() {

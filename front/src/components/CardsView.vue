@@ -67,7 +67,7 @@
         },
         watch: {
             $el(val){
-                console.log(val);
+                console.log("watch $el:",val);
             },
             dataRows(val){
                 this.selectedNodes = [];

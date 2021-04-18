@@ -1,84 +1,12 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 
-const axios = require('axios');
+import api from '../services/api';
 const _ = require('lodash');
-const DEBUG = process.env.NODE_ENV === "development";
 Vue.use(Vuex)
-// axios interceptors
-/*
-// for requests
-axios.interceptors.request.use((config) => {
-    /// In dev, intercepts request and logs it into console for dev
-    if (DEBUG) { console.info("✉️ ", config); }
-    return config;
-}, (error) => {
-    if (DEBUG) { console.error("✉️ ", error); }
-    return Promise.reject(error);
-});
-
-axios.interceptors.request.use((config) => {
-    config.headers.genericKey = "someGenericValue";
-    return config;
-}, (error) => {
-    return Promise.reject(error);
-});
-
-// for response
-axios.interceptors.response.use((response) => {
-    if (response.config.parse) {
-        //perform the manipulation here and change the response object
-    }
-    return response;
-}, (error) => {
-    return Promise.reject(error.message);
-});
-
-axios.interceptors.response.use((response) => {
-    if(response.status === 401) {
-        alert("You are not authorized");
-    }
-    return response;
-}, (error) => {
-    if (error.response && error.response.data) {
-        return Promise.reject(error.response.data);
-    }
-    return Promise.reject(error.message);
-});
-*/
 
 const FILE_API_PATH = "/api/file/"
 const NODE_API_PATH = "/api/node/"
-
-const defaultOptions = {
-    "timeout": 4000,    // 4 seconds timeout
-    "Content-Type": "application/json",
-    "headers": {
-        'X-Custom-Header': 'value' // just example
-    }
-};
-
-const postData = function (url, data, options, successCallback, errorCallback) {
-    options = _.merge(defaultOptions, options);
-    axios.post(url, data, options)
-        .then(successCallback)
-        .catch(errorCallback)
-}
-
-const getData = function (url, data, options, successCallback, errorCallback) {
-    options = _.merge(defaultOptions, options);
-    if(data){
-        url = url+ "?";
-        Object.keys(data).forEach(key=>{
-            url= url+key+"="+data[key]+"&";
-        })
-    }
-    options.url = url; //+ "?" + encodeURI(JSON.stringify(data));
-    console.log(options);
-    axios.get(options.url,options)
-        .then(successCallback)
-        .catch(errorCallback)
-}
 
 export default new Vuex.Store({
     state: {
@@ -135,7 +63,7 @@ export default new Vuex.Store({
     },
     mutations: {
         storeCurrentNodeData(state, data) {
-            console.log("mutation [storeCurrentNodeData] : ",data);
+            console.log("mutation [storeCurrentNodeData] ",data);
             state.currentNodeData = data ;
             if(state.loadedNodes.length>0){
                 let index = state.loadedNodes.indexOf(elt=> elt.data.id === data.id);
@@ -144,21 +72,21 @@ export default new Vuex.Store({
             }
         },
         storeCurrentNodeElement(state, node){
-            console.log("mutation [storeCurrentNodeElement] : ",node);
+            console.log("mutation [storeCurrentNodeElement] ",node);
             state.currentNodeElement = node ;
             if(!state.currentNodeData || state.currentNodeData.id!==node.data.id)
                 state.currentNodeData = node.data
         },
         storeRootNodeElement(state, root){
-            console.log("mutation [storeRootNodeElement] : ",root);
+            console.log("mutation [storeRootNodeElement] ",root);
             state.rootNodeElement = root ;
         },
         storeLoadedNodes(state, elements){
-            console.log("mutation [storeLoadedNodes] : ",elements);
+            console.log("mutation [storeLoadedNodes] ",elements);
             state.loadedNodes = elements;
         },
         setNodesInClipBoard(state, elements, operationType){
-            console.log("mutation [setNodesInClipBoard] : ",elements, operationType);
+            console.log("mutation [setNodesInClipBoard] ",elements, operationType);
             state.clipBoardNodes = elements;
             state.clipBoardOperation = operationType || "COPY";
         },
@@ -170,9 +98,11 @@ export default new Vuex.Store({
                     commit("storeRootNodeElement", root);
                     let getChildren = function(parent){
                         let children= [parent];
-                        (parent.childNodes||[]).forEach(child=>{
-                            children = _.concat(children,getChildren(child));
-                        });
+                        if(parent && parent.childNodes){
+                            (parent.childNodes||[]).forEach(child=>{
+                                children = _.concat(children,getChildren(child));
+                            });
+                        }
                         return children;
                     }
                     let nodes = _.uniq(getChildren(root));
@@ -216,7 +146,6 @@ export default new Vuex.Store({
                     if(!operation)
                         reject("operation undefined");
                     let srcId= state.clipBoardNodes[0].id,destId = destNode.id;
-                    console.log("=======",srcId,destId);
                     dispatch(operation,  {srcId,destId})
                         .then(response=> resolve(response))
                         .catch(error=> reject(error));
@@ -228,16 +157,16 @@ export default new Vuex.Store({
 
         getNodeById({state, getters, commit, dispatch}, nodeId) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "getNodeById",
                     {nodeId},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("getNodeById",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("getNodeById",error);
                         reject(error);
                     }
                 )
@@ -245,16 +174,16 @@ export default new Vuex.Store({
         },
         getNodeInfoById({state, getters, commit, dispatch}, nodeId) {
             return new Promise((resolve, reject) => {
-                getData(
+                api.getData(
                     NODE_API_PATH + "getNodeInfoById/"+nodeId,
                     undefined,
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("getNodeInfoById",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("getNodeInfoById",error);
                         reject(error);
                     }
                 )
@@ -262,16 +191,16 @@ export default new Vuex.Store({
         },
         getNodeByPath({state, getters, commit, dispatch}, nodePath) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "getNodeByPath",
                     {nodePath},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("getNodeByPath",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("getNodeByPath",error);
                         reject(error);
                     }
                 )
@@ -279,16 +208,16 @@ export default new Vuex.Store({
         },
         getNodesByParentId({state, getters, commit, dispatch}, parentId) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "getNodesByParentId",
                     {parentId},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("getNodesByParentId",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("getNodesByParentId",error);
                         reject(error);
                     }
                 )
@@ -296,16 +225,16 @@ export default new Vuex.Store({
         },
         getNodesByParentPath({state, getters, commit, dispatch}, parentPath) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "getNodesByParentPath",
                     {parentPath},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log( "getNodesByParentPath",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error( "getNodesByParentPath",error);
                         reject(error);
                     }
                 )
@@ -313,16 +242,16 @@ export default new Vuex.Store({
         },
         getNodesByQuery({state, getters, commit, dispatch}, query) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "getNodesByQuery",
                     query,
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("getNodesByQuery",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("getNodesByQuery",error);
                         reject(error);
                     }
                 )
@@ -331,16 +260,16 @@ export default new Vuex.Store({
 
         createFolderNodeWithMetaData({state, getters, commit, dispatch}, metaData) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "createFolderNodeWithMetaData",
                     metaData,
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("createFolderNodeWithMetaData",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("createFolderNodeWithMetaData",error);
                         reject(error);
                     }
                 )
@@ -349,16 +278,16 @@ export default new Vuex.Store({
 
         deleteNodeByPath({state, getters, commit, dispatch}, {path, recursive}) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "deleteNodeByPath",
                     {path, recursive},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("deleteNodeByPath",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("deleteNodeByPath",error);
                         reject(error);
                     }
                 )
@@ -366,16 +295,16 @@ export default new Vuex.Store({
         },
         deleteNodeById({state, getters, commit, dispatch}, {nodeId, recursive}) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "deleteNodeById",
                     {nodeId, recursive},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("deleteNodeById",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("deleteNodeById",error);
                         reject(error);
                     }
                 )
@@ -383,16 +312,16 @@ export default new Vuex.Store({
         },
         deleteNodesById({state, getters, commit, dispatch}, {nodesId, recursive}) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "deleteNodesById",
                     {nodesId, recursive},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("deleteNodesById",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("deleteNodesById",error);
                         reject(error);
                     }
                 )
@@ -401,16 +330,16 @@ export default new Vuex.Store({
 
         hasPermissionById({state, getters, commit, dispatch}, {nodeId, permission}) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "hasPermissionById",
                     {nodeId, permission},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("hasPermissionById",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("hasPermissionById",error);
                         reject(error);
                     }
                 )
@@ -418,16 +347,16 @@ export default new Vuex.Store({
         },
         hasPermissionByPath({state, getters, commit, dispatch}, {nodePath, permission}) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "hasPermissionByPath",
                     {nodePath, permission},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("hasPermissionByPath",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("hasPermissionByPath",error);
                         reject(error);
                     }
                 )
@@ -436,16 +365,16 @@ export default new Vuex.Store({
 
         copyNodeByPath({state, getters, commit, dispatch}, {srcPath, destPath}) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "hasPermissionByPath",
                     {srcPath, destPath},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("hasPermissionByPath",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("hasPermissionByPath",error);
                         reject(error);
                     }
                 )
@@ -453,16 +382,16 @@ export default new Vuex.Store({
         },
         copyNodeById({state, getters, commit, dispatch}, {srcId, destId}) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "copyNodeById",
                     {srcId, destId},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("copyNodeById",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("copyNodeById",error);
                         reject(error);
                     }
                 )
@@ -471,16 +400,16 @@ export default new Vuex.Store({
 
         moveNodeByPath({state, getters, commit, dispatch}, {srcPath, destPath}) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "moveNodeByPath",
                     {srcPath, destPath},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("moveNodeByPath",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("moveNodeByPath",error);
                         reject(error);
                     }
                 )
@@ -489,16 +418,16 @@ export default new Vuex.Store({
         moveNodeById({state, getters, commit, dispatch}, {srcId, destId}) {
             return new Promise((resolve, reject) => {
                 console.log("++++++",srcId,destId);
-                postData(
+                api.postData(
                     NODE_API_PATH + "moveNodeById",
                     {srcId, destId},
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("moveNodeById",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("moveNodeById",error);
                         reject(error);
                     }
                 )
@@ -507,16 +436,16 @@ export default new Vuex.Store({
 
         uploadFile({state, getters, commit, dispatch}, formData) {
             return new Promise((resolve, reject) => {
-                getData(
+                api.getData(
                     FILE_API_PATH + "uploadFile",
                     formData,
                     {},
                     (response) => {
-                        console.log(response);
+                        console.log("uploadFile",response);
                         resolve(response.data);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("uploadFile",error);
                         reject(error);
                     }
                 )
@@ -525,7 +454,7 @@ export default new Vuex.Store({
 
         getCompressedNodes({state, getters, commit, dispatch}, nodesId) {
             return new Promise((resolve, reject) => {
-                postData(
+                api.postData(
                     NODE_API_PATH + "getCompressedNodes",
                     nodesId,
                     {},
@@ -545,7 +474,7 @@ export default new Vuex.Store({
         },
         getCompressedFolder({state, getters, commit, dispatch}, folderId) {
             return new Promise((resolve, reject) => {
-                getData(
+                api.getData(
                     NODE_API_PATH + "getCompressedFolder/"+folderId,
                     undefined,
                     {},
@@ -565,7 +494,7 @@ export default new Vuex.Store({
         },
         streamNodeContent({state, getters, commit, dispatch}, nodeId) {
             return new Promise((resolve, reject) => {
-                getData(
+                api.getData(
                     NODE_API_PATH + "streamContent/"+nodeId,
                     undefined,
                     {},
@@ -585,7 +514,7 @@ export default new Vuex.Store({
         },
         streamFileContent({state, getters, commit, dispatch}, fileId) {
             return new Promise((resolve, reject) => {
-                getData(
+                api.getData(
                     FILE_API_PATH + "streamContent/"+fileId,
                     undefined,
                     {},
@@ -602,7 +531,7 @@ export default new Vuex.Store({
         },
         getFileInfo({state, getters, commit, dispatch}, fileId) {
             return new Promise((resolve, reject) => {
-                getData(
+                api.getData(
                     FILE_API_PATH + "getFileInfo/"+fileId,
                     undefined,
                     {},

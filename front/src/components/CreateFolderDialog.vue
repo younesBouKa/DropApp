@@ -124,7 +124,6 @@
                     });
             },
             handleCloseFolderCreationDialog(done){
-                console.log("handleCloseFolderCreationDialog", done);
                 done();
             },
             createFolder(){
@@ -139,9 +138,9 @@
                     return;
                 }
 
-                this.createFolderNodeWithMetaData(this.nodeForm)
+                this.$store.dispatch("createFolderNodeWithMetaData",this.nodeForm)
                     .then(response=>{
-                        console.log(response);
+                        console.log("createFolder",response);
                         this.errorAlert = undefined;
                         this.$message({
                             message: 'Dossier "'+response.name+'" crée avec  success.',
@@ -151,7 +150,7 @@
                         this.dialogVisible = false;
                     })
                     .catch(error=>{
-                        console.error(error);
+                        console.error("createFolder",error);
                         this.errorAlert = error;
                         this.$message({
                             message: error,
