@@ -75,6 +75,8 @@
         },
         data() {
             return {
+                minColWidth : 100,
+                containerWidth : 0,
                 selectedRows : [],
                 defaultProps: {
                     children: 'children',
@@ -111,7 +113,7 @@
                 let cols = this.columns.length > 0
                     ? this.columns
                     : (this.rows.length > 0 ? Object.keys(this.rows[0]) : []);
-                return cols.map((oldCol, index) => {
+                cols = cols.map((oldCol, index) => {
                     let col = {};
                     if (typeof oldCol === "string" || !oldCol.hasOwnProperty("field"))
                         col.field = oldCol;
@@ -122,11 +124,11 @@
                     if (!oldCol.hasOwnProperty("label"))
                         col.label = col.field.toUpperCase();
                     return col;
-                })
+                });
+                let nbrOfColumnsToShow = this.containerWidth > this.minColWidth
+                    ? parseInt((this.containerWidth/this.minColWidth).toFixed(0) ,10): cols.length;
+                return cols.slice(0,nbrOfColumnsToShow);
             },
-            /* ...mapGetters({
-                 selectedNode:"getCurrentNodeData"
-             }),*/
         },
         watch: {
             dataRows(val){
@@ -134,6 +136,14 @@
             }
         },
         mounted() {
+            let self = this;
+            this.containerWidth = this.$el.getBoundingClientRect().width;
+            window.addEventListener('resize', ()=>{
+                try {
+                    let containerWidth = self.$el.getBoundingClientRect().width;
+                    self.containerWidth = containerWidth > self.minColWidth ? containerWidth : self.containerWidth;
+                }catch(error){}
+            });
         },
         methods: {
             ...mapActions({
@@ -161,17 +171,6 @@
             rowClick(row, column, event) {
                 console.log("rowClick : ", row, column, event);
             },
-            openFullScreen2() {
-                const loading = this.$loading({
-                    lock: true,
-                    text: 'Loading',
-                    spinner: 'el-icon-loading',
-                    background: 'rgba(0, 0, 0, 0.7)'
-                });
-                setTimeout(() => {
-                    loading.close();
-                }, 2000);
-            }
         }
     }
 </script>

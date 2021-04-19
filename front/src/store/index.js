@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 
-import api from '../services/api';
+import api from '../services/Api';
 const _ = require('lodash');
 Vue.use(Vuex)
 

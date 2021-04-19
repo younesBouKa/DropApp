@@ -10,13 +10,13 @@
                 type="flex"
                 :justify="row.length < nbrOfColumnsInRow ? 'start':'space-between'"
         >
-                <el-col :span="6" v-for="node in row">
+                <el-col :style="colStyle" v-for="node in row">
                     <div class="node-col">
                         <NodeCard
                                 :node="node"
                                 @click.native="selectNode(node)"
                                 @dblclick.native="setCurrentNode(node)"
-                                :class="selectedNodes.findIndex(n=>n.id===node.id)!==-1? 'selected_node':''"
+                                :class="selectedNodes.findIndex(n=>n.id===node.id)!==-1 ? 'selected_node':''"
                         >
                         </NodeCard>
                     </div>
@@ -43,7 +43,9 @@
         },
         data() {
             return {
-                nbr_cols_in_row: 4,
+                defaultColWidth : 200,
+                containerWidth : 0,
+                defaultNbrColsInRow: 4,
                 selectedNodes : [],
                 defaultProps: {
                     children: 'children',
@@ -59,22 +61,30 @@
                 return _.chunk(this.data, this.nbrOfColumnsInRow);
             },
             nbrOfColumnsInRow(){
-                return 4;//parseInt((this.$el.offsetWidth/200).toFixed(0),10) || this.nbr_cols_in_row;
+                return !this.containerWidth || this.containerWidth===0
+                    ? this.defaultNbrColsInRow
+                    : parseInt((this.containerWidth/this.defaultColWidth).toFixed(0),10);
             },
-            /* ...mapGetters({
-                 selectedNode:"getCurrentNodeDataData"
-             }),*/
+            colStyle(){
+                return {
+                   width: this.nbrOfColumnsInRow>0 ? (100/this.nbrOfColumnsInRow)+"%" : this.defaultColWidth+"px"
+                }
+            }
         },
         watch: {
-            $el(val){
-                console.log("watch $el:",val);
-            },
             dataRows(val){
                 this.selectedNodes = [];
             }
         },
         mounted() {
-            this.nbr_cols_in_row= parseInt((this.$el.offsetWidth/200).toFixed(0),10);
+            let self = this;
+            this.containerWidth = this.$el.getBoundingClientRect().width;
+            window.addEventListener('resize', ()=>{
+                try {
+                    let containerWidth = self.$el.getBoundingClientRect().width;
+                    self.containerWidth = containerWidth > self.defaultColWidth ? containerWidth : self.containerWidth;
+                }catch (error) {}
+            });
         },
         methods: {
             ...mapActions({

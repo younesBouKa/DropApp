@@ -96,7 +96,8 @@
                         field : "permission",
                         label : "Permission",
                     },
-                    "type"
+                    "type",
+                    "fileSize",
                 ]
             }
         },
