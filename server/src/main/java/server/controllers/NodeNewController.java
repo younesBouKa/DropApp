@@ -9,7 +9,7 @@ import server.exceptions.CustomException;
 import server.exceptions.Message;
 import server.models.NodeIncomingDto;
 import server.data.NodeNew;
-import server.services.NodeServiceNew;
+import server.services.INodeService;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -25,10 +25,10 @@ public class NodeNewController {
     private static final String NEW_ORDER_LOG = "New order was created id:{}";
     private static final String ORDER_UPDATED_LOG = "Order:{} was updated";
 
-    private final NodeServiceNew nodeService;
+    private final INodeService nodeService;
 
     @Autowired
-    public NodeNewController(NodeServiceNew nodeService) {
+    public NodeNewController(INodeService nodeService) {
         this.nodeService = nodeService;
     }
 
@@ -57,7 +57,7 @@ public class NodeNewController {
         }
         node.setFile(file);
         NodeNew createdNode = nodeService.insertNode(spaceId, node);
-        return nodeService.addParent(createdNode);
+        return createdNode;
     }
 
     @GetMapping(value = "/{nodeId}")
@@ -65,8 +65,7 @@ public class NodeNewController {
                                @PathVariable String nodeId) throws CustomException {
 
         NodeNew node = nodeService.getNodeById(spaceId, nodeId);
-        nodeService.addChildren(node);
-        return nodeService.addParent(node);
+        return node;
     }
 
     @PutMapping(path = "/{nodeId}")
@@ -84,7 +83,7 @@ public class NodeNewController {
         }
         node.setFile(file);
         NodeNew createdNode = nodeService.updateNode(spaceId, nodeId, node);
-        return nodeService.addParent(createdNode);
+        return createdNode;
     }
 
     @DeleteMapping(path = "/{nodeId}", consumes = APPLICATION_JSON_VALUE)

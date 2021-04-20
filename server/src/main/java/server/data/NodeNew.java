@@ -10,6 +10,7 @@ import server.models.NodeIncomingDto;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,7 +26,7 @@ public class NodeNew implements Serializable {
     String contentType;
     String parentId;
     String spaceId;
-    Map<String, Object> fields;
+    Map<String, Object> fields = new HashMap<>();
     Instant creationDate = Instant.now();
     Instant modificationDate = Instant.now();
     Space space;
@@ -47,9 +48,12 @@ public class NodeNew implements Serializable {
 
     public static NodeNew updateWith(NodeNew node, NodeIncomingDto nodeIncomingDto) {
         node.setName(nodeIncomingDto.getName());
-        node.setContentType("nodeIncomingDto.getContentType()"); //
-        node.setFields(nodeIncomingDto.getFields());
-        node.setFileId("nodeIncomingDto.getFileId()"); //
+        Map<String, Object> fields = nodeIncomingDto.getFields();
+        if (fields!=null){
+            for(String key : fields.keySet()){
+                node.getFields().put(key, fields.get(key));
+            }
+        }
         node.setParentId(nodeIncomingDto.getParentId()); //
         node.setPath(nodeIncomingDto.getPath()); //
         node.setType(nodeIncomingDto.getType()); //

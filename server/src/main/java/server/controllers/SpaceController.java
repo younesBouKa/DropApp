@@ -1,27 +1,17 @@
 package server.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
-import server.data.Node;
 import server.data.Space;
 import server.exceptions.CustomException;
 import server.models.SpaceIncomingDto;
-import server.services.FsFilesService;
-import server.services.NodeService;
-import server.services.SpaceService;
+import server.services.ISpaceService;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.INFO;
-import static java.util.logging.Level.SEVERE;
+import static java.util.logging.Level.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import static server.exceptions.Message.*;
 
@@ -33,10 +23,10 @@ public class SpaceController {
     private static final String NEW_ORDER_LOG = "New order was created id:{}";
     private static final String ORDER_UPDATED_LOG = "Order:{} was updated";
 
-    private final SpaceService spaceService;
+    private final ISpaceService spaceService;
 
     @Autowired
-    public SpaceController(SpaceService spaceService) {
+    public SpaceController(ISpaceService spaceService) {
         this.spaceService = spaceService;
     }
 
@@ -54,13 +44,13 @@ public class SpaceController {
     @PostMapping(consumes = APPLICATION_JSON_VALUE)
     public Space saveSpace(@RequestBody SpaceIncomingDto spaceIncomingDto) throws CustomException {
         Space space =  spaceService.insertSpace(spaceIncomingDto);
-        return spaceService.addRoots(space);
+        return space;
     }
 
     @GetMapping(value = "/{spaceId}")
     public Space getSpaceById(@PathVariable String spaceId) throws CustomException {
         Space space = spaceService.getSpaceById(spaceId);
-        return spaceService.addRoots(space);
+        return space;
     }
 
     @PutMapping(path = "/{spaceId}", consumes = APPLICATION_JSON_VALUE)
