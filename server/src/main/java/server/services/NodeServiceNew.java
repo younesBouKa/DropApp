@@ -37,70 +37,98 @@ public class NodeServiceNew implements INodeService{
         PageRequest pageRequest = PageRequest.of(page, size, Sort.Direction.valueOf(direction), sortField);
         return nodeRepo.findAllByParentIdAndNameContains(parentId, search, pageRequest)
                 .stream()
-                //.map(this::addChildren)
-                .map(this::addParent)
+                //.map(this::addChildren) // overloading response
+                .map(this::addParent) // adding parents
                 .collect(Collectors.toList());
     }
 
     public NodeNew getNodeById(String spaceId, String nodeId) throws CustomException {
-        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, spaceId));
+        // splicing it to give more details in error cas
+        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID, spaceId));
         NodeNew node = nodeRepo.findById(nodeId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId));
         return addChildren(addParent(node));
     }
 
     public NodeNew insertNode(String spaceId, NodeIncomingDto nodeIncomingDto) throws CustomException {
-        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, spaceId));
+        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID, spaceId));
         String parentId = nodeIncomingDto.getParentId();
-        if(parentId==null && nodeIncomingDto.getType().equals(NodeType.FOLDER)){
+        // try to create a root folder (no parentId and type=FOLDER)
+        if(parentId==null && NodeType.FOLDER.equals(nodeIncomingDto.getType())){
             return createRootFolder(space, nodeIncomingDto);
         }
-        NodeNew parentNode = nodeRepo.findById(parentId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,parentId));
+        // else we must have parentId
+        NodeNew parentNode = nodeRepo.findById(parentId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
         NodeNew node = NodeNew.from(nodeIncomingDto);
         node.setCreationDate(Instant.now());
         node.setModificationDate(Instant.now());
         node = prepareNodeToSave(space, parentNode, node, nodeIncomingDto);
         try {
             NodeNew createdNode = nodeRepo.insert(node);
-            return addParent(createdNode);
+            return addParent(createdNode); // just more details
         }catch (org.springframework.dao.DuplicateKeyException e){
-            throw new CustomException(FILE_ALREADY_EXISTS_WITH_SAME_NAME, node.getName());
+            throw new CustomException(e, NODE_ALREADY_EXISTS_WITH_SAME_KEYS, node.getName(), space.getId(), parentNode.getId());
         }
     }
 
     public NodeNew updateNode(String spaceId, String nodeId, NodeIncomingDto nodeIncomingDto) throws CustomException {
-        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, spaceId));
+        // splicing validation for more details in error cas
+        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID, spaceId));
         NodeNew node = nodeRepo.findById(nodeId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, nodeId));
         String parentId = nodeIncomingDto.getParentId();
-        NodeNew parentNode = nodeRepo.findById(parentId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,parentId));
+        // try to updating a root folder
+        if(parentId==null && NodeType.FOLDER.equals(nodeIncomingDto.getType())){
+            return updateRootFolder(node, space, nodeIncomingDto);
+        }
+        // else we update a node
+        NodeNew parentNode = nodeRepo.findById(parentId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
         NodeNew.updateWith(node,nodeIncomingDto);
         node.setModificationDate(Instant.now());
         node = prepareNodeToSave(space, parentNode, node, nodeIncomingDto);
-        try {
+        try { // catch duplicate key exception
             NodeNew createdNode = nodeRepo.save(node);
             return addParent(createdNode);
         }catch (org.springframework.dao.DuplicateKeyException e){
-          throw new CustomException(FILE_ALREADY_EXISTS_WITH_SAME_NAME, node.getName());
+          throw new CustomException(e, NODE_ALREADY_EXISTS_WITH_SAME_KEYS, node.getName(), space.getId(), parentNode.getId());
         }
     }
 
     public int deleteNode(String spaceId, String nodeId) throws CustomException {
-        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, spaceId));
+        // just counting before and after deleting
+        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID, spaceId));
         int count = nodeRepo.countById(nodeId);
         nodeRepo.deleteById(nodeId);
         return count - nodeRepo.countById(nodeId);
     }
 
     public NodeNew createRootFolder(Space space, NodeIncomingDto nodeInfo) throws CustomException {
+        // custom process for root folders creation
         if(space==null || space.getId()==null)
-            throw new CustomException(NO_NODE_WITH_GIVEN_ID,null);
+            throw new CustomException(NO_SPACE_WITH_GIVEN_ID,null);
         nodeInfo.setParentId(null);
         NodeNew node = NodeNew.from(nodeInfo);
         node.setSpaceId(space.getId());
         node.setSpace(space);
+        node.setType(NodeType.FOLDER);
         try {
             return nodeRepo.insert(node);
         }catch (org.springframework.dao.DuplicateKeyException e){
-            throw new CustomException(FILE_ALREADY_EXISTS_WITH_SAME_NAME, node.getName());
+            throw new CustomException(e, NODE_ALREADY_EXISTS_WITH_SAME_KEYS, node.getName(), space.getId(), null);
+        }
+    }
+
+    private NodeNew updateRootFolder(NodeNew node, Space space, NodeIncomingDto nodeInfo) throws CustomException {
+        // also for update
+        if(space==null || space.getId()==null)
+            throw new CustomException(NO_SPACE_WITH_GIVEN_ID,null);
+        nodeInfo.setParentId(null);
+        NodeNew.updateWith(node, nodeInfo);
+        node.setSpaceId(space.getId());
+        node.setSpace(space);
+        node.setType(NodeType.FOLDER);
+        try {
+            return nodeRepo.save(node);
+        }catch (org.springframework.dao.DuplicateKeyException e){
+            throw new CustomException(e, NODE_ALREADY_EXISTS_WITH_SAME_KEYS, node.getName(), space.getId(), null);
         }
     }
 
@@ -111,12 +139,13 @@ public class NodeServiceNew implements INodeService{
     /********** Tools *******************/
 
     public NodeNew prepareNodeToSave(Space space, NodeNew parent, NodeNew node, NodeIncomingDto nodeIncomingDto) throws CustomException {
+        // adding some fresh information to node before saving it in db
         node.setSpaceId(space.getId());
-        node.setCreationDate(Instant.now());
         node.setSpace(space);
         node.setParent(parent);
         MultipartFile file = nodeIncomingDto.getFile();
-        if(file!=null && file.getSize()>0){
+        if(NodeType.FILE.equals(nodeIncomingDto.getType()) && file!=null && file.getSize()>0){
+            // information of file
             node.setType(NodeType.FILE);
             ObjectId fileId = fileRepo.saveFile(file, node);
             node.setFileId(fileId.toString());
@@ -127,12 +156,14 @@ public class NodeServiceNew implements INodeService{
     }
 
     public NodeNew addChildren(NodeNew node){
+        // add children if exist
         List<NodeNew> children = nodeRepo.findByParentId(node.getId());
         node.setChildren(children);
         return node;
     }
 
     public NodeNew addParent(NodeNew node){
+        // add parent if exist
         if(node.getParentId()==null)
             return node;
         NodeNew parent = nodeRepo.findById(node.getParentId()).orElse(null);

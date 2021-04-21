@@ -27,14 +27,14 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
     public Object beforeBodyWrite(Object body, MethodParameter returnType, MediaType selectedContentType,
                                   Class<? extends HttpMessageConverter<?>> selectedConverterType, ServerHttpRequest request,
                                   ServerHttpResponse response) {
-        if(body instanceof ResponseWrapper)
+        if(body instanceof ResponseWrapper) // if already an exception was wrapped, just return it
             return body;
         final ResponseWrapper<Object> output = new ResponseWrapper<>();
-        output.setData(body);
-        output.setDevMessage(null);
+        output.setData(body); // data
+        output.setDevMessage(null); // no message for dev
         output.setHttpCode(200);
         output.setOk(true);
-        output.setUserMessage(null);
+        output.setUserMessage(null); // no message for user
         return output;
     }
 
@@ -42,14 +42,21 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
     public ResponseEntity<ResponseWrapper> handleAll(Exception ex, RedirectAttributes redirectAttributes) {
         final ResponseWrapper<MessageCode> output = new ResponseWrapper<>();
         MessageCode messageCode;
-        if (ex instanceof CustomException)
-            messageCode = ((CustomException) ex).getMessageCode();
-        else
-            messageCode = new MessageCode("Technical error!", -1);
-        output.setUserMessage(messageCode.getMessage());
-        output.setData(messageCode);
-        output.setDevMessage(ex.toString());
-        output.setHttpCode(200);
+        if (ex instanceof CustomException){ // if exception was wrapped
+            CustomException exception = ((CustomException) ex);
+            messageCode = exception.getMessageCode(); // get error to send in body (code + formatted message)
+            if(exception.getDevException()!=null) // if no known exception was wrapped
+                output.setDevMessage(exception.getDevException().toString()); // put it in devMessage
+            else
+                output.setDevMessage(messageCode.getMessage()); // else just put formatted message
+        }
+        else{ // if exception was not wrapped
+            messageCode = new MessageCode("Technical error!", -1); // error in body will be technical error
+            output.setDevMessage(ex.toString()); // put exception in devMessage
+        }
+        output.setUserMessage(messageCode.getMessage()); // formatted message
+        output.setData(messageCode); // error in body
+        output.setHttpCode(200); // always send response
         output.setOk(false);
         return new ResponseEntity<ResponseWrapper>(output, new HttpHeaders(), HttpStatus.OK);
     }

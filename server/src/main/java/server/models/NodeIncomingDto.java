@@ -64,4 +64,14 @@ public class NodeIncomingDto implements Serializable {
     public void setFile(MultipartFile file) {
         this.file = file;
     }
+
+    public static String getFormat(){
+        return "{" +
+                "name: String, " +
+                "type: ['FOLDER' | 'FILE']," +
+                "parentId: String, " +
+                "fields : Map<String,Object>, " +
+                "file: MultipartFile" +
+                "}";
+    }
 }

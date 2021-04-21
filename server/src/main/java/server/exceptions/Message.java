@@ -34,6 +34,11 @@ public enum Message {
     ERROR_WHILE_STREAMING_FILE_CONTENT("Error while streaming file content [%s]"),
 
     ERROR_WHILE_DELETING_FILE("Error while deleting file [%s]"),
+    // used in api v0
+    SPACE_ALREADY_EXISTS_WITH_SAME_KEYS("Space already exists with same keys { name: [%s], ownerId: [%s]"),
+    NODE_ALREADY_EXISTS_WITH_SAME_KEYS("Node already exists with same keys { name: [%s], spaceId: [%s], parentId: [%s]"),
+    NO_SPACE_WITH_GIVEN_ID("No space with given id [%s]"),
+    ERROR_WHILE_PARSING_NODE_INFO("Error while parsing node info [%s]"),
     ;
 
     private String message;

@@ -53,7 +53,7 @@ public class NodeNewController {
         try {
             node = mapper.readValue(nodeInfo, NodeIncomingDto.class);
         } catch (JsonProcessingException e) {
-            throw new CustomException(Message.NO_CONTENT_TYPE_FOR_NODE,nodeInfo);
+            throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
         node.setFile(file);
         NodeNew createdNode = nodeService.insertNode(spaceId, node);
@@ -79,7 +79,7 @@ public class NodeNewController {
         try {
             node = mapper.readValue(nodeInfo, NodeIncomingDto.class);
         } catch (JsonProcessingException e) {
-            throw new CustomException(Message.NO_CONTENT_TYPE_FOR_NODE,nodeInfo);
+            throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
         node.setFile(file);
         NodeNew createdNode = nodeService.updateNode(spaceId, nodeId, node);

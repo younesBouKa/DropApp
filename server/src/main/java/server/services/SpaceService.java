@@ -30,14 +30,15 @@ public class SpaceService implements ISpaceService{
 
     public List<Space> getSpaces(int page, int size,String sortField,String direction,List<String> status, String search) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.Direction.valueOf(direction), sortField);
+        // TODO here i must add owner id from PrincipalUser (later)
         return spaceRepo.findAllByOwnerIdAndNameContains("ownerid" , search, pageRequest)
                 .stream()
-                .map(this::addRoots)
+                .map(this::addRoots) // add roots for more details
                 .collect(Collectors.toList());
     }
 
     public Space getSpaceById(String id) throws CustomException {
-        Space space = spaceRepo.findById(id).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,id));
+        Space space = spaceRepo.findById(id).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID,id));
         return addRoots(space);
     }
 
@@ -48,23 +49,23 @@ public class SpaceService implements ISpaceService{
         try {
             createdSpace = spaceRepo.insert(space);
         }catch (org.springframework.dao.DuplicateKeyException e){
-            throw new CustomException(FILE_ALREADY_EXISTS_WITH_SAME_NAME, space.getName());
+            throw new CustomException(e, SPACE_ALREADY_EXISTS_WITH_SAME_KEYS, space.getName());
         }
         NodeIncomingDto node = new NodeIncomingDto();
-        node.setName("root");
+        node.setName("root"); // TODO the default root folder in each space we call it 'root'
         node.setType(NodeType.FOLDER);
         nodeService.createRootFolder(createdSpace, node);
         return addRoots(createdSpace);
     }
 
     public Space updateSpace(String spaceId, SpaceIncomingDto spaceIncomingDto) throws CustomException {
-        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, spaceId));
+        Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID, spaceId));
         Space.updateWith(space, spaceIncomingDto);
         space.setLastModificationDate(Instant.now());
         try {
             return spaceRepo.save(space);
         }catch (org.springframework.dao.DuplicateKeyException e){
-            throw new CustomException(FILE_ALREADY_EXISTS_WITH_SAME_NAME, space.getName());
+            throw new CustomException(e, SPACE_ALREADY_EXISTS_WITH_SAME_KEYS, space.getName(), space.getOwnerId());
         }
     }
 
