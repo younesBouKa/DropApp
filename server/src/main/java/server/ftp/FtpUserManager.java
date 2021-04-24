@@ -11,6 +11,7 @@ import org.springframework.util.Assert;
 import server.user.IUserService;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -56,7 +57,7 @@ class FtpUserManager implements UserManager {
 		defaultUser.setEnabled(true);
 		defaultUser.setUsername("user");
 		defaultUser.setPassword("pass");
-		defaultUser.setHomeDirectory(new File("home"));
+		defaultUser.setHomeDirectory(Paths.get("home").toAbsolutePath().toString());
 		defaultUser.setAuthorities(anonAuthorities);
 		defaultUser.getAuthorities().addAll(adminAuthorities);
 		defaultUser.setMaxIdleTime(-1);

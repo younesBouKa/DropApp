@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class MyFtplet extends DefaultFtplet implements Ftplet {
@@ -42,14 +43,14 @@ public class MyFtplet extends DefaultFtplet implements Ftplet {
         //Get the upload path of the uploaded file
         FtpFile ftpFile = session.getFileSystemView().getFile(request.getArgument());
         String homeDir = session.getUser().getHomeDirectory();
-        Path filePath = Paths.get(homeDir+ftpFile.getAbsolutePath());
+        Path filePath = Paths.get(homeDir,ftpFile.getAbsolutePath());
         File file = filePath.toFile();
         Node node = null;
         try {
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("parentPath",ftpFile.getAbsolutePath());
             if(file.isFile())
-                node = nodeService.createFile(ftpFile, new HashMap<>(),true);
-            else if(file.isDirectory())
-                node = nodeService.createFolderFromPath(filePath.normalize().toString());
+                node = nodeService.createFile(ftpFile, metadata,true);
         } catch (CustomException e) {
             logger.error(e.getMessage());
         }
