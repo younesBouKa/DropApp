@@ -1,16 +1,21 @@
 package server.user;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
 public class UserMongoService implements IUserService {
 
     @Autowired
+    IRoleRepo roleRepo;
+    @Autowired
     IUserRepo userRepo;
+    @Autowired
+    private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     @Override
     public List<User> getUsersByName(String name) {
@@ -26,6 +31,15 @@ public class UserMongoService implements IUserService {
     public int deleteByUsername(String name) {
         this.userRepo.deleteByUsername(name);
         return 1;
+    }
+
+    @Override
+    public User saveUser(User user) {
+        user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+        user.setEnabled(true);
+        Role userRole = roleRepo.findByRole("USER");
+        user.setRoles(new HashSet<>(Arrays.asList(userRole)));
+        return userRepo.save(user);
     }
 
     @Override

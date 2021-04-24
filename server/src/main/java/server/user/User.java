@@ -6,9 +6,10 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @CompoundIndexes({@CompoundIndex(name = "username", def = "{'username':1}")})
 @Document("user")
@@ -20,8 +21,9 @@ public class User {
     private boolean enabled;
     private boolean admin;
     private int maxIdleTime;
-    private List<Authority> authorities = new ArrayList<>();
-    private File homeDirectory;
+    private List<Authority> authorities = new ArrayList<>(); // for ftp authentication
+    private Set<Role> roles = new HashSet<>(); // for web authentication
+    private String homeDirectory;
 
     public String getId() {
         return id;
@@ -71,11 +73,11 @@ public class User {
         this.authorities = authorities;
     }
 
-    public File getHomeDirectory() {
+    public String getHomeDirectory() {
         return homeDirectory;
     }
 
-    public void setHomeDirectory(File homeDirectory) {
+    public void setHomeDirectory(String homeDirectory) {
         this.homeDirectory = homeDirectory;
     }
 
@@ -85,5 +87,13 @@ public class User {
 
     public void setAdmin(boolean admin) {
         this.admin = admin;
+    }
+
+    public Set<Role> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<Role> roles) {
+        this.roles = roles;
     }
 }
