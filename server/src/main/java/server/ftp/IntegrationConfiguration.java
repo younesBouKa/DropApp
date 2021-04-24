@@ -11,6 +11,7 @@ import org.springframework.integration.ftp.server.ApacheMinaFtplet;
 import org.springframework.integration.handler.GenericHandler;
 import org.springframework.messaging.MessageChannel;
 
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 @Configuration
@@ -33,7 +34,8 @@ class IntegrationConfiguration {
 		return IntegrationFlows.from(this.eventsChannel())
 			.handle((GenericHandler<ApacheMinaFtpEvent>) (apacheMinaFtpEvent, messageHeaders) -> {
 				logger.info("new event: " + apacheMinaFtpEvent.getClass().getName() + ':' + apacheMinaFtpEvent.getSession());
-				return null;
+				logger.info("new event [messageHeaders]: " + Arrays.toString(messageHeaders.entrySet().toArray()));
+				return apacheMinaFtpEvent;
 			})
 			.get();
 	}

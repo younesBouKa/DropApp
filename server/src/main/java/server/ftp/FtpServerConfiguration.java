@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
@@ -36,11 +37,15 @@ class FtpServerConfiguration {
 	}
 
 	@Bean
-	FtpServer ftpServer(Map<String, Ftplet> ftpletMap, UserManager userManager, Listener nioListener, FileSystemFactory fileSystemFactory) {
+	FtpServer ftpServer(Map<String, MyFtplet> ftpletMap, UserManager userManager, Listener nioListener, FileSystemFactory fileSystemFactory) {
 		FtpServerFactory ftpServerFactory = new FtpServerFactory();
 		ftpServerFactory.setListeners(Collections.singletonMap("default", nioListener));
 		ftpServerFactory.setFileSystem(fileSystemFactory);
-		ftpServerFactory.setFtplets(ftpletMap);
+		Map<String, Ftplet> map = new HashMap<>();
+		for(String key : ftpletMap.keySet()){
+			map.put(key,ftpletMap.get(key));
+		}
+		ftpServerFactory.setFtplets(map);
 		ftpServerFactory.setUserManager(userManager);
 		return ftpServerFactory.createServer();
 	}

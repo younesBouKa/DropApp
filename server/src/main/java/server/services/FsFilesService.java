@@ -1,6 +1,7 @@
 package server.services;
 
 import com.mongodb.client.gridfs.model.GridFSFile;
+import org.apache.ftpserver.ftplet.FtpFile;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +16,7 @@ import server.data.Node;
 import server.exceptions.CustomException;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import static server.exceptions.Message.*;
@@ -36,6 +38,14 @@ public class FsFilesService {
     public ObjectId saveFile(MultipartFile file, Node node) throws CustomException {
         try {
             return gridFsTemplate.store(file.getInputStream(), node.getName(), file.getContentType(), node);
+        }catch (IOException e){
+          throw new CustomException(ERROR_WHILE_SAVING_FILE,node.getName());
+        }
+    }
+
+    public ObjectId saveFile(FtpFile file, Node node) throws CustomException {
+        try {
+            return gridFsTemplate.store(file.createInputStream(0), node.getName(), node);
         }catch (IOException e){
           throw new CustomException(ERROR_WHILE_SAVING_FILE,node.getName());
         }

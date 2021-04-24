@@ -21,15 +21,17 @@ import java.util.stream.Collectors;
 @Component
 class FtpUserManager implements UserManager {
 
-	private final File root = new File(".");
+	private final File root = new File("uploads");
 	@Autowired
 	private IUserService userService;
 
+	private server.user.User defaultUser;
+
 	// AUTHORITIES
-	private final List<Authority> adminAuthorities = new ArrayList<>(Arrays.asList(new WritePermission()));
+	private final List<Authority> adminAuthorities = new ArrayList<>(Arrays.asList(new WritePermission("/")));
 	private final List<Authority> anonAuthorities = new ArrayList<>(Arrays.asList(
-		new ConcurrentLoginPermission(20, 2),
-		new TransferRatePermission(4800, 4800)
+			new ConcurrentLoginPermission(100, 100),
+			new TransferRatePermission(4800, 4800)
 	));
 
 	private final Function<server.user.User, User> userMapper = (server.user.User user) -> {
@@ -38,7 +40,7 @@ class FtpUserManager implements UserManager {
 		boolean enabled = user.isEnabled();
 		boolean admin = user.isAdmin();
 		String id = user.getId();
-		File home = new File(new File(root, id), "home");
+		File home = new File(new File(root, username), "home");
 		Assert.isTrue(home.exists() || home.mkdirs(), "the home directory " + home.getAbsolutePath() + " must exist");
 		List<Authority> authorities = new ArrayList<>(anonAuthorities);
 		if (admin) {
@@ -47,14 +49,29 @@ class FtpUserManager implements UserManager {
 		return new FtpUser(username, password, enabled, authorities, -1, home);
 	};
 
+	public FtpUserManager(){
+		// TODO just for test
+		defaultUser = new server.user.User();
+		defaultUser.setAdmin(true);
+		defaultUser.setEnabled(true);
+		defaultUser.setUsername("user");
+		defaultUser.setPassword("pass");
+		defaultUser.setHomeDirectory(new File("home"));
+		defaultUser.setAuthorities(anonAuthorities);
+		defaultUser.getAuthorities().addAll(adminAuthorities);
+		defaultUser.setMaxIdleTime(-1);
+	}
+
 	@Override
 	public User getUserByName(String name) {
 		List<User> users = this.userService.getUsersByName(name)
 				.stream()
 				.map(userMapper)
 				.collect(Collectors.toList());
-		Assert.isTrue(users.size() > 0, "there must be a user by this name");
-		return users.get(0);
+		if(users.size()==0)
+			return null;
+		User user = users.get(0);
+		return userMapper.apply(defaultUser);//user;
 	}
 
 	@Override
