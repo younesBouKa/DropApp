@@ -1,6 +1,7 @@
 package server.services;
 
 import com.mongodb.client.result.UpdateResult;
+import org.apache.ftpserver.ftplet.FtpFile;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -301,6 +302,45 @@ public class NodeService {
                 name,
                 null,
                 file.getContentType(),
+                file.getSize()
+        );
+
+        if (nodeInDb != null && upsert) {
+            node.setId(nodeInDb.getId());
+        } else if (nodeInDb != null) {
+            throw new CustomException(FILE_ALREADY_EXISTS_WITH_SAME_PATH, path);
+        }
+        ObjectId id = fileService.saveFile(file, node);
+        node.setFileId(id.toString());
+        return upsertOneNode(node);
+    }
+
+    public Node createFile(FtpFile file, Map<String, Object> metaData, boolean upsert) throws CustomException {
+        Node parentNode = null;
+        if (metaData.get("parentId") != null) {
+            parentNode = getNodeById((String) metaData.get("parentId"));
+        }
+        if (parentNode == null && metaData.get("parentPath") != null) {
+            parentNode = getNodeByPath((String) metaData.get("parentPath"));
+            if (parentNode == null)
+                parentNode = createFolderFromPath((String) metaData.get("parentPath"));
+        }
+        if (parentNode == null)
+            parentNode = getRoot();
+
+        String name = (String) metaData.getOrDefault("name", file.getName());
+        String path = concatTwoPaths(parentNode.getPath(), name);
+
+        Node nodeInDb = getNodeByPath(path);
+        Node node = new Node(
+                path,
+                Permission.getFrom(metaData.getOrDefault("permission", parentNode.getPermission())),
+                parentNode.getId(),
+                new Date(),
+                NodeType.FILE,
+                name,
+                null,
+                "",
                 file.getSize()
         );
 
