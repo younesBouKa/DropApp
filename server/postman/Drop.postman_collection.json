@@ -1,0 +1,512 @@
+{
+	"variables": [],
+	"info": {
+		"name": "Drop",
+		"_postman_id": "59bc0abc-6160-a6e8-acc5-0a20d0e1ac32",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "auth",
+			"description": "",
+			"item": [
+				{
+					"name": "signUp",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"",
+									""
+								]
+							}
+						}
+					],
+					"request": {
+						"url": "localhost:8090/api/v0/auth/signup",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"username\": \"younes\",\n\t\"email\" : \"younes@gmail.com\",\n\t\"password\" : \"pass\",\n\t\"roles\" : [\"user\",\"admin\"],\n\t\"homeDirectory\" : \"toto\"\n}"
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"var res = JSON.parse(responseBody);",
+									"",
+									"if(res && res.ok){",
+									"    var token = res.data.token; ",
+									"    postman.setEnvironmentVariable(\"token\", \"Bearer \"+token);",
+									"}",
+									""
+								]
+							}
+						}
+					],
+					"request": {
+						"url": "localhost:8090/api/v0/auth/login",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"username\": \"younes\",\n\t\"password\" : \"pass\"\n}"
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "testAdminPath",
+					"request": {
+						"url": "localhost:8090/api/v0/test/all",
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							},
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"username\": \"younes\",\n\t\"password\" : \"pass\"\n}"
+						},
+						"description": ""
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "space",
+			"description": "",
+			"item": [
+				{
+					"name": "insertSpace",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"var res = JSON.parse(responseBody);",
+									"",
+									"if(res && res.ok){",
+									"    var spaceId = res.data.id; ",
+									"    postman.setEnvironmentVariable(\"spaceId\", spaceId);",
+									"    var roots = res.data.roots;",
+									"    if(roots.length>0){",
+									"        var parentId = roots[0].id; ",
+									"        postman.setEnvironmentVariable(\"parentId\", spaceId);",
+									"    }",
+									"}",
+									""
+								]
+							}
+						}
+					],
+					"request": {
+						"url": "localhost:8090/api/v0/spaces",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							},
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\" : \"space 1\",\n\t\"fields\" : {\"some_fields\": \"test\"}\n}"
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "getSpace",
+					"request": {
+						"url": "localhost:8090/api/v0/spaces/607f569edec3410e5a9ed7f9",
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"value": "",
+									"description": "",
+									"type": "file"
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"my file\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {}}",
+									"description": "",
+									"type": "text"
+								}
+							]
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "getSpacesByQuery",
+					"request": {
+						"url": {
+							"raw": "localhost:8090/api/v0/spaces?search=s",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"spaces"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "s",
+									"equals": true,
+									"description": ""
+								}
+							],
+							"variable": []
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							},
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\" : \"space\",\n\t\"ownerId\": \"ownerid\",\n\t\"rootPath\" : \"/\"\n}"
+						},
+						"description": ""
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "node",
+			"description": "",
+			"item": [
+				{
+					"name": "insertFile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"var res = JSON.parse(responseBody);",
+									"",
+									"if(res && res.ok){",
+									"    var nodeid = res.data.id; ",
+									"    postman.setEnvironmentVariable(\"nodeId\", nodeid);",
+									"}",
+									""
+								]
+							}
+						}
+					],
+					"request": {
+						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"value": "",
+									"description": "",
+									"type": "file"
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"file 3\",\"type\" : \"FILE\",\"parentId\":{{parentId}},\"fields\" : {\"toto\":\"test\"}}",
+									"description": "",
+									"type": "text"
+								}
+							]
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "createRootFolder",
+					"request": {
+						"url": "localhost:8090/api/v0/spaces/607f569edec3410e5a9ed7f9/nodes/",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"value": "",
+									"description": "",
+									"type": "file"
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"folder 2\",\"type\":\"FOLDER\",\"fields\" : {\"toto\":\"test\"}}",
+									"description": "",
+									"type": "text"
+								}
+							]
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "createFolderNode",
+					"request": {
+						"url": "localhost:8090/api/v0/spaces/607f569edec3410e5a9ed7f9/nodes/",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"value": "",
+									"description": "",
+									"type": "file"
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"folder 4\", \"type\":\"FOLDER\",\"parentId\":\"{{parentId}}\",\"fields\" : {\"toto\":\"test\"}}",
+									"description": "",
+									"type": "text"
+								}
+							]
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "updateFile",
+					"request": {
+						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/607eecf2372fde61841a7122",
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"value": "",
+									"description": "",
+									"type": "file"
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"file 2\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {\"toto\":\"test\"}}",
+									"description": "",
+									"type": "text"
+								}
+							]
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "getNode",
+					"request": {
+						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/{{parentId}}",
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"value": "",
+									"description": "",
+									"type": "file"
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"my file\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {}}",
+									"description": "",
+									"type": "text"
+								}
+							]
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "getNodesByQuery",
+					"request": {
+						"url": {
+							"raw": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/children/{{parentId}}?search=fi",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"spaces",
+								"{{spaceId}}",
+								"nodes",
+								"children",
+								"{{parentId}}"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "fi",
+									"equals": true,
+									"description": ""
+								}
+							],
+							"variable": []
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"value": "",
+									"description": "",
+									"type": "file"
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"my file\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {}}",
+									"description": "",
+									"type": "text"
+								}
+							]
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "deleteNode",
+					"request": {
+						"url": "localhost:8090/api/v0/spaces/{{parentId}}/nodes/{{nodeId}}",
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							},
+							{
+								"key": "Authorization",
+								"value": "{{token}}",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"description": ""
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

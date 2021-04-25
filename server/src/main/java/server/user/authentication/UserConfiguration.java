@@ -5,8 +5,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import server.user.IRoleRepo;
-import server.user.Role;
+import server.user.repositories.IRoleRepo;
+import server.user.data.Role;
+import server.user.services.CustomUserDetailsService;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class UserConfiguration {
@@ -24,22 +28,15 @@ public class UserConfiguration {
 
     @Bean
     CommandLineRunner init(IRoleRepo roleRepository) {
-
         return args -> {
-
-            Role adminRole = roleRepository.findByRole("ADMIN");
-            if (adminRole == null) {
-                Role newAdminRole = new Role();
-                newAdminRole.setRole("ADMIN");
-                roleRepository.save(newAdminRole);
-            }
-
-            Role userRole = roleRepository.findByRole("USER");
-            if (userRole == null) {
-                Role newUserRole = new Role();
-                newUserRole.setRole("USER");
-                roleRepository.save(newUserRole);
-            }
+            List<String> rolesName = Arrays.asList("ADMIN", "USER", "MODERATOR");
+            rolesName.forEach(name ->{
+                Role adminRole = roleRepository.findByName(name);
+                if (adminRole == null) {
+                    Role newAdminRole = new Role(name);
+                    roleRepository.save(newAdminRole);
+                }
+            });
         };
 
     }

@@ -8,7 +8,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 @Component
-public class NodeIncomingDto implements Serializable {
+public class NodeRequest implements Serializable {
 
     String name;
     NodeType type;

@@ -2,6 +2,7 @@ package server.repositories;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import server.data.NodeNew;
 
 import java.time.Instant;
@@ -29,6 +30,9 @@ public interface INodeRepo extends MongoRepository<NodeNew, String> {
     List<NodeNew> findAllByParentId(String id, PageRequest pageRequest);
     List<NodeNew> findAllByParentIdAndType(String id, String type, PageRequest pageRequest);
     List<NodeNew> findAllByParentIdAndNameContains(String id, String name, PageRequest pageRequest);
+
+    @Query("{ 'name': ?1 , 'space.id' : ?2 }")
+    List<NodeNew> findByNameAndSpaceId(String name, String spaceId);
 
     @Override
     Optional<NodeNew> findById(String id);

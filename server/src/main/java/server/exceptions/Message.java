@@ -39,6 +39,10 @@ public enum Message {
     NODE_ALREADY_EXISTS_WITH_SAME_KEYS("Node already exists with same keys { name: [%s], spaceId: [%s], parentId: [%s]"),
     NO_SPACE_WITH_GIVEN_ID("No space with given id [%s]"),
     ERROR_WHILE_PARSING_NODE_INFO("Error while parsing node info [%s]"),
+
+    // used in user security
+    USERNAME_ALREADY_TAKEN("Username already taken [%s]"),
+    EMAIL_ALREADY_TAKEN("Email already taken [%s]")
     ;
 
     private String message;

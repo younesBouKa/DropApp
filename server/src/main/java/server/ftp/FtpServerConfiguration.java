@@ -37,7 +37,7 @@ class FtpServerConfiguration {
 	}
 
 	@Bean
-	FtpServer ftpServer(Map<String, MyFtplet> ftpletMap, UserManager userManager, Listener nioListener, FileSystemFactory fileSystemFactory) {
+	FtpServer ftpServer(Map<String, CustomFtplet> ftpletMap, UserManager userManager, Listener nioListener, FileSystemFactory fileSystemFactory) {
 		FtpServerFactory ftpServerFactory = new FtpServerFactory();
 		ftpServerFactory.setListeners(Collections.singletonMap("default", nioListener));
 		ftpServerFactory.setFileSystem(fileSystemFactory);

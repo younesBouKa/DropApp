@@ -1,27 +1,23 @@
-package server.user;
+package server.user.data;
 
-import org.apache.ftpserver.ftplet.Authority;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
-@CompoundIndexes({@CompoundIndex(name = "username", def = "{'username':1}")})
+@CompoundIndexes({@CompoundIndex(name = "username_email", def = "{'username':1,'email':1}")})
 @Document("user")
 public class User {
     @Id
     private String id;
     private String username;
     private String password;
+    private String email;
     private boolean enabled;
     private boolean admin;
-    private int maxIdleTime;
-    private List<Authority> authorities = new ArrayList<>(); // for ftp authentication
+    private int maxIdleTime = -1;
     private Set<Role> roles = new HashSet<>(); // for web authentication
     private String homeDirectory;
 
@@ -65,16 +61,8 @@ public class User {
         this.maxIdleTime = maxIdleTime;
     }
 
-    public List<Authority> getAuthorities() {
-        return authorities;
-    }
-
-    public void setAuthorities(List<Authority> authorities) {
-        this.authorities = authorities;
-    }
-
     public String getHomeDirectory() {
-        return homeDirectory;
+        return Optional.of(homeDirectory).orElse("home");
     }
 
     public void setHomeDirectory(String homeDirectory) {
@@ -96,4 +84,13 @@ public class User {
     public void setRoles(Set<Role> roles) {
         this.roles = roles;
     }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
 }

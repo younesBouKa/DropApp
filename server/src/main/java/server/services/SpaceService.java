@@ -3,17 +3,21 @@ package server.services;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import server.data.NodeNew;
 import server.data.NodeType;
 import server.data.Space;
 import server.exceptions.CustomException;
-import server.models.NodeIncomingDto;
-import server.models.SpaceIncomingDto;
+import server.models.NodeRequest;
+import server.models.SpaceRequest;
 import server.repositories.ISpaceRepo;
+import server.user.data.User;
+import server.user.services.CustomUserDetails;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -28,22 +32,34 @@ public class SpaceService implements ISpaceService{
     @Autowired
     private INodeService nodeService;
 
-    public List<Space> getSpaces(int page, int size,String sortField,String direction,List<String> status, String search) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.Direction.valueOf(direction), sortField);
+    @Override
+    public List<Space> getSpaces(User user) {
         // TODO here i must add owner id from PrincipalUser (later)
-        return spaceRepo.findAllByOwnerIdAndNameContains("ownerid" , search, pageRequest)
+        return spaceRepo.findAllByOwnerId(user.getId())
                 .stream()
                 .map(this::addRoots) // add roots for more details
                 .collect(Collectors.toList());
     }
 
-    public Space getSpaceById(String id) throws CustomException {
-        Space space = spaceRepo.findById(id).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID,id));
+    @Override
+    public List<Space> getSpaces(User user, int page, int size,String sortField,String direction,List<String> status, String search) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.Direction.valueOf(direction), sortField);
+        // TODO here i must add owner id from PrincipalUser (later)
+        return spaceRepo.findAllByOwnerIdAndNameContains(user.getId() , search, pageRequest)
+                .stream()
+                .map(this::addRoots) // add roots for more details
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Space getSpaceById(User user, String spaceId) throws CustomException {
+        Space space = spaceRepo.findByIdAndOwnerId(spaceId, user.getId()).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID,spaceId));
         return addRoots(space);
     }
 
-    public Space insertSpace(SpaceIncomingDto spaceIncomingDto) throws CustomException {
-        Space space = Space.from(spaceIncomingDto);
+    @Override
+    public Space insertSpace(User user, SpaceRequest spaceRequest) throws CustomException {
+        Space space = spaceFromRequest(user, spaceRequest);
         space.setCreationDate(Instant.now());
         Space createdSpace;
         try {
@@ -51,16 +67,17 @@ public class SpaceService implements ISpaceService{
         }catch (org.springframework.dao.DuplicateKeyException e){
             throw new CustomException(e, SPACE_ALREADY_EXISTS_WITH_SAME_KEYS, space.getName());
         }
-        NodeIncomingDto node = new NodeIncomingDto();
-        node.setName("root"); // TODO the default root folder in each space we call it 'root'
+        NodeRequest node = new NodeRequest();
+        node.setName(user.getHomeDirectory()); // TODO the default root folder in each space we call it 'root'
         node.setType(NodeType.FOLDER);
         nodeService.createRootFolder(createdSpace, node);
         return addRoots(createdSpace);
     }
 
-    public Space updateSpace(String spaceId, SpaceIncomingDto spaceIncomingDto) throws CustomException {
+    @Override
+    public Space updateSpace(User user, String spaceId, SpaceRequest spaceRequest) throws CustomException {
         Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID, spaceId));
-        Space.updateWith(space, spaceIncomingDto);
+        updateSpaceWithRequest(space, user, spaceRequest);
         space.setLastModificationDate(Instant.now());
         try {
             return spaceRepo.save(space);
@@ -69,9 +86,10 @@ public class SpaceService implements ISpaceService{
         }
     }
 
-    public int deleteSpace(String spaceId) {
+    @Override
+    public int deleteSpace(User user, String spaceId) {
         int count = spaceRepo.countById(spaceId);
-        spaceRepo.deleteById(spaceId);
+        spaceRepo.deleteByIdAndOwnerId(spaceId, user.getId());
         return count - spaceRepo.countById(spaceId);
     }
 
@@ -79,6 +97,24 @@ public class SpaceService implements ISpaceService{
     public Space addRoots(Space space){
         List<NodeNew> roots = nodeService.getRootNodes(space.getId());
         space.setRoots(roots);
+        return space;
+    }
+
+    public static Space spaceFromRequest(User user, SpaceRequest spaceRequest) {
+        Space space = updateSpaceWithRequest(new Space(), user, spaceRequest);
+        return space;
+    }
+
+    public static Space updateSpaceWithRequest(Space space, User user, SpaceRequest spaceRequest) {
+        space.setName(spaceRequest.getName());
+        space.setOwnerId(user.getId());
+        space.setRootPath(user.getHomeDirectory());
+        Map<String, Object> fields = spaceRequest.getFields();
+        if(fields!=null){
+            for(String key : fields.keySet()){
+                space.getFields().put(key, fields.get(key));
+            }
+        }
         return space;
     }
 

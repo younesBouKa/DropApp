@@ -1,19 +1,20 @@
 package server.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import server.data.Space;
 import server.exceptions.CustomException;
-import server.models.SpaceIncomingDto;
+import server.models.SpaceRequest;
 import server.services.ISpaceService;
+import server.user.data.User;
+import server.user.services.CustomUserDetails;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-import static server.exceptions.Message.*;
 
 @RestController
 @RequestMapping("/api/v0/spaces")
@@ -38,33 +39,39 @@ public class SpaceController {
                              @RequestParam(required = false, name = "status") List<String> status,
                              @RequestParam(required = false, name = "search", defaultValue = "") String search) throws CustomException {
 
-        return spaceService.getSpaces(page,size, sortField, direction, null,search);
+        return spaceService.getSpaces(currentUser(), page,size, sortField, direction, null,search);
     }
 
     @PostMapping(consumes = APPLICATION_JSON_VALUE)
-    public Space saveSpace(@RequestBody SpaceIncomingDto spaceIncomingDto) throws CustomException {
-        Space space =  spaceService.insertSpace(spaceIncomingDto);
+    public Space saveSpace(@RequestBody SpaceRequest spaceRequest) throws CustomException {
+        Space space =  spaceService.insertSpace(currentUser(), spaceRequest);
         return space;
     }
 
     @GetMapping(value = "/{spaceId}")
     public Space getSpaceById(@PathVariable String spaceId) throws CustomException {
-        Space space = spaceService.getSpaceById(spaceId);
+        Space space = spaceService.getSpaceById(currentUser(), spaceId);
         return space;
     }
 
     @PutMapping(path = "/{spaceId}", consumes = APPLICATION_JSON_VALUE)
     public Space updateSpace(@PathVariable String spaceId,
-                             @RequestBody SpaceIncomingDto spaceIncomingDto,
+                             @RequestBody SpaceRequest spaceRequest,
                              HttpServletRequest request) throws CustomException {
 
-        return spaceService.updateSpace(spaceId, spaceIncomingDto);
+        return spaceService.updateSpace(currentUser(), spaceId, spaceRequest);
     }
 
     @DeleteMapping(path = "/{spaceId}", consumes = APPLICATION_JSON_VALUE)
     public int deleteSpace(@PathVariable String spaceId,
                              HttpServletRequest request) throws CustomException {
 
-        return spaceService.deleteSpace(spaceId);
+        return spaceService.deleteSpace(currentUser(), spaceId);
+    }
+
+    /********** tools **********************/
+    public static User currentUser(){
+        CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userDetails.getUser();
     }
 }

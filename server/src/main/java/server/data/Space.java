@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
-import server.models.SpaceIncomingDto;
+import server.models.SpaceRequest;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -30,24 +30,6 @@ public class Space implements Serializable {
 
     @Transient
     List<NodeNew> roots;
-
-    public static Space from(SpaceIncomingDto spaceIncomingDto) {
-        Space space = updateWith(new Space(), spaceIncomingDto);
-        return space;
-    }
-
-    public static Space updateWith(Space space, SpaceIncomingDto spaceIncomingDto) {
-        space.setName(spaceIncomingDto.getName());
-        space.setOwnerId(spaceIncomingDto.getOwnerId());
-        space.setRootPath(spaceIncomingDto.getRootPath());
-        Map<String, Object> fields = spaceIncomingDto.getFields();
-        if(fields!=null){
-            for(String key : fields.keySet()){
-                space.getFields().put(key, fields.get(key));
-            }
-        }
-        return space;
-    }
 
     public String getId() {
         return id;

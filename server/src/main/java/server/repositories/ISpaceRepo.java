@@ -16,6 +16,7 @@ import java.util.Optional;
 public interface ISpaceRepo extends MongoRepository<Space, String>{
 
 
+    List<Space> findAllByOwnerId(String ownerId);
     List<Space> findAllByOwnerId(String ownerId, PageRequest pageRequest);
     List<Space> findAllByOwnerIdAndNameContains(String ownerId, String name, PageRequest pageRequest);
     //@Query("{ 'ownedId': ?1 , 'name' : { $regex: ?2 } }")
@@ -25,8 +26,7 @@ public interface ISpaceRepo extends MongoRepository<Space, String>{
 
     boolean existsByNameAndOwnerId(String name, String id);
 
-    @Override
-    Optional<Space> findById( String id);
+    Optional<Space> findByIdAndOwnerId(String spaceId, String ownerId);
     Optional<Space> findByName(String name);
     Optional<Space> findByOwnerId(String id);
     List<Space> findByRootPath(String rootPath);
@@ -39,7 +39,7 @@ public interface ISpaceRepo extends MongoRepository<Space, String>{
     List<Space> findByLastModificationDateBetween(Instant data1, Instant date2);
 
     int countById(String id);
-    void deleteById(String id);
+    void deleteByIdAndOwnerId(String id, String ownerId);
 
     /*@Query(value="{ 'firstName' : ?0 }", fields="{ 'firstName' : 1, 'lastname' : 1}", sort="{'field1':'acc'}")
     List<Space> find(String firstName);*/

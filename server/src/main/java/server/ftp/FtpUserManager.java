@@ -8,16 +8,14 @@ import org.apache.ftpserver.usermanager.impl.WritePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
-import server.user.IUserService;
+import server.user.services.IUserService;
 
 import java.io.File;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Component
 class FtpUserManager implements UserManager {
@@ -26,53 +24,41 @@ class FtpUserManager implements UserManager {
 	@Autowired
 	private IUserService userService;
 
-	private server.user.User defaultUser;
-
-	// AUTHORITIES
-	private final List<Authority> adminAuthorities = new ArrayList<>(Arrays.asList(new WritePermission("/")));
-	private final List<Authority> anonAuthorities = new ArrayList<>(Arrays.asList(
+	private static final List<Authority> adminAuthorities = new ArrayList<>(Arrays.asList(new WritePermission("/")));
+	private static final List<Authority> anonAuthorities = new ArrayList<>(Arrays.asList(
 			new ConcurrentLoginPermission(100, 100),
 			new TransferRatePermission(4800, 4800)
 	));
 
-	private final Function<server.user.User, User> userMapper = (server.user.User user) -> {
+	private final Function<server.user.data.User, User> userMapper = (server.user.data.User user) -> {
 		String username = user.getUsername();
 		String password = user.getPassword();
 		boolean enabled = user.isEnabled();
-		boolean admin = user.isAdmin();
-		String id = user.getId();
-		File home = new File(new File(root, username), "home");
+		String homeDirectory = user.getHomeDirectory();
+		File home = new File(new File(root, username), homeDirectory);
 		Assert.isTrue(home.exists() || home.mkdirs(), "the home directory " + home.getAbsolutePath() + " must exist");
-		List<Authority> authorities = new ArrayList<>(anonAuthorities);
-		if (admin) {
-			authorities.addAll(adminAuthorities);
-		}
-		return new FtpUser(username, password, enabled, authorities, -1, home);
+		List<Authority> authorities = getAuthorities(user);
+		return new FtpUser(username, password, enabled, authorities, user.getMaxIdleTime(), home);
 	};
 
-	public FtpUserManager(){
-		// TODO just for test
-		defaultUser = new server.user.User();
-		defaultUser.setAdmin(true);
-		defaultUser.setEnabled(true);
-		defaultUser.setUsername("user");
-		defaultUser.setPassword("pass");
-		defaultUser.setHomeDirectory(Paths.get("home").toAbsolutePath().toString());
-		defaultUser.setAuthorities(anonAuthorities);
-		defaultUser.getAuthorities().addAll(adminAuthorities);
-		defaultUser.setMaxIdleTime(-1);
+	public static List<Authority> getAuthorities(server.user.data.User user) {
+		return getAuthorities(user.isAdmin());
+	}
+
+	public static List<Authority> getAuthorities(boolean isAdmin) {
+		List<Authority> authorities = new ArrayList<>(anonAuthorities);
+		if(isAdmin){
+			authorities.addAll(adminAuthorities);
+		}
+		return authorities;
 	}
 
 	@Override
 	public User getUserByName(String name) {
-		List<User> users = this.userService.getUsersByName(name)
-				.stream()
-				.map(userMapper)
-				.collect(Collectors.toList());
-		if(users.size()==0)
-			return null;
-		User user = users.get(0);
-		return userMapper.apply(defaultUser);//user;
+		server.user.data.User user = userService.getUserByUsername(name);
+		if(user!=null)
+			return userMapper.apply(user);
+		return null;
 	}
 
 	@Override
@@ -89,8 +75,12 @@ class FtpUserManager implements UserManager {
 
 	@Override
 	public void save(User user) throws FtpException {
-		server.user.User updatedUser = this.userService.updateUserByName(user.getName(), user.getPassword(), user.getEnabled(), user.getAuthorities().equals(this.adminAuthorities));
-		Assert.isInstanceOf(server.user.User.class, updatedUser, "there must be some acknowledgment of the write");
+		server.user.data.User updatedUser = this.userService.updateUserByName(
+				user.getName(),
+				user.getPassword(),
+				user.getEnabled(),
+				user.getAuthorities().equals(getAuthorities(false)));
+		Assert.isInstanceOf(server.user.data.User.class, updatedUser, "there must be some acknowledgment of the write");
 	}
 
 	@Override

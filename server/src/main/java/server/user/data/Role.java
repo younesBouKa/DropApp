@@ -1,4 +1,4 @@
-package server.user;
+package server.user.data;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -7,7 +7,11 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class Role {
     @Id
     private String id;
-    private String role;
+    private String name;
+
+    public Role(String name) {
+        this.name = name;
+    }
 
     public String getId() {
         return id;
@@ -17,11 +21,11 @@ public class Role {
         this.id = id;
     }
 
-    public String getRole() {
-        return role;
+    public String getName() {
+        return name;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public void setName(String role) {
+        this.name = role;
     }
 }
