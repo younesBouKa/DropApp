@@ -2,9 +2,10 @@ package server.user.data;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import server.data.IRole;
 
 @Document("role")
-public class Role {
+public class Role implements IRole {
     @Id
     private String id;
     private String name;

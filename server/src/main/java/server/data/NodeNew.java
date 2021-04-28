@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
-import server.models.NodeRequest;
+import server.models.NodeWebRequest;
 
 import java.io.InputStream;
 import java.io.Serializable;
@@ -39,26 +39,6 @@ public class NodeNew implements Serializable {
     InputStream content; // TODO to remove later
     @Transient
     String path; // TODO to remove later
-
-
-    public static NodeNew from(NodeRequest nodeRequest) {
-        NodeNew node = updateWith(new NodeNew(), nodeRequest);;
-        return node;
-    }
-
-    public static NodeNew updateWith(NodeNew node, NodeRequest nodeRequest) {
-        node.setName(nodeRequest.getName());
-        Map<String, Object> fields = nodeRequest.getFields();
-        if (fields!=null){
-            for(String key : fields.keySet()){
-                node.getFields().put(key, fields.get(key));
-            }
-        }
-        node.setParentId(nodeRequest.getParentId()); //
-        node.setPath(nodeRequest.getPath()); //
-        node.setType(nodeRequest.getType()); //
-        return node;
-    }
 
     public String getId() {
         return id;

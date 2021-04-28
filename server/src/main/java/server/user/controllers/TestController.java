@@ -3,7 +3,7 @@ package server.user.controllers;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import server.user.data.User;
+import server.data.IUser;
 import server.user.services.CustomUserDetails;
 
 import java.util.logging.Logger;
@@ -37,7 +37,7 @@ public class TestController {
     }
 
     /********** tools **********************/
-    public static User currentUser(){
+    public static IUser currentUser(){
         CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return userDetails.getUser();
     }

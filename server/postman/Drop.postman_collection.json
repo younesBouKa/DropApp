@@ -79,31 +79,6 @@
 						"description": ""
 					},
 					"response": []
-				},
-				{
-					"name": "testAdminPath",
-					"request": {
-						"url": "localhost:8090/api/v0/test/all",
-						"method": "GET",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"description": ""
-							},
-							{
-								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"username\": \"younes\",\n\t\"password\" : \"pass\"\n}"
-						},
-						"description": ""
-					},
-					"response": []
 				}
 			]
 		},
@@ -127,7 +102,7 @@
 									"    var roots = res.data.roots;",
 									"    if(roots.length>0){",
 									"        var parentId = roots[0].id; ",
-									"        postman.setEnvironmentVariable(\"parentId\", spaceId);",
+									"        postman.setEnvironmentVariable(\"parentId\", parentId);",
 									"    }",
 									"}",
 									""
@@ -161,7 +136,7 @@
 				{
 					"name": "getSpace",
 					"request": {
-						"url": "localhost:8090/api/v0/spaces/607f569edec3410e5a9ed7f9",
+						"url": "localhost:8090/api/v0/spaces/{{spaceId}}",
 						"method": "GET",
 						"header": [
 							{
@@ -276,13 +251,13 @@
 							"formdata": [
 								{
 									"key": "file",
-									"value": "",
 									"description": "",
-									"type": "file"
+									"type": "file",
+									"src": "notes.txt"
 								},
 								{
 									"key": "nodeInfo",
-									"value": "{\"name\" : \"file 3\",\"type\" : \"FILE\",\"parentId\":{{parentId}},\"fields\" : {\"toto\":\"test\"}}",
+									"value": "{\"name\" : \"file 3\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {\"toto\":\"test\"}}",
 									"description": "",
 									"type": "text"
 								}
@@ -295,7 +270,7 @@
 				{
 					"name": "createRootFolder",
 					"request": {
-						"url": "localhost:8090/api/v0/spaces/607f569edec3410e5a9ed7f9/nodes/",
+						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/",
 						"method": "POST",
 						"header": [
 							{
@@ -328,7 +303,7 @@
 				{
 					"name": "createFolderNode",
 					"request": {
-						"url": "localhost:8090/api/v0/spaces/607f569edec3410e5a9ed7f9/nodes/",
+						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/",
 						"method": "POST",
 						"header": [
 							{
@@ -361,7 +336,7 @@
 				{
 					"name": "updateFile",
 					"request": {
-						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/607eecf2372fde61841a7122",
+						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/{{nodeId}}",
 						"method": "PUT",
 						"header": [
 							{
@@ -375,9 +350,9 @@
 							"formdata": [
 								{
 									"key": "file",
-									"value": "",
 									"description": "",
-									"type": "file"
+									"type": "file",
+									"src": "Fichier_signer.pdf"
 								},
 								{
 									"key": "nodeInfo",
@@ -428,7 +403,7 @@
 					"name": "getNodesByQuery",
 					"request": {
 						"url": {
-							"raw": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/children/{{parentId}}?search=fi",
+							"raw": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/children/{{parentId}}?search=file",
 							"host": [
 								"localhost"
 							],
@@ -445,7 +420,7 @@
 							"query": [
 								{
 									"key": "search",
-									"value": "fi",
+									"value": "file",
 									"equals": true,
 									"description": ""
 								}
@@ -480,12 +455,18 @@
 						"description": ""
 					},
 					"response": []
-				},
+				}
+			]
+		},
+		{
+			"name": "clear",
+			"description": "",
+			"item": [
 				{
 					"name": "deleteNode",
 					"request": {
 						"url": "localhost:8090/api/v0/spaces/{{parentId}}/nodes/{{nodeId}}",
-						"method": "GET",
+						"method": "DELETE",
 						"header": [
 							{
 								"key": "Content-Type",

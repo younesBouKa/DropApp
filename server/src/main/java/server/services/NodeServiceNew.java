@@ -6,16 +6,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import server.data.Node;
 import server.data.NodeType;
 import server.data.Space;
 import server.exceptions.CustomException;
-import server.models.NodeRequest;
 import server.data.NodeNew;
+import server.models.NodeFtpRequest;
+import server.models.NodeWebRequest;
 import server.repositories.IFileRepo;
 import server.repositories.INodeRepo;
 import server.repositories.ISpaceRepo;
-import server.user.data.User;
 
 import java.time.Instant;
 import java.util.*;
@@ -51,7 +50,12 @@ public class NodeServiceNew implements INodeService{
         return addChildren(addParent(node));
     }
 
-    public NodeNew insertNode(String spaceId, NodeRequest nodeRequest) throws CustomException {
+    @Override
+    public NodeNew insertNode(NodeFtpRequest nodeFtpRequest) throws CustomException {
+        return null;
+    }
+
+    public NodeNew insertNode(String spaceId, NodeWebRequest nodeRequest) throws CustomException {
         Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID, spaceId));
         String parentId = nodeRequest.getParentId();
         // try to create a root folder (no parentId and type=FOLDER)
@@ -60,7 +64,7 @@ public class NodeServiceNew implements INodeService{
         }
         // else we must have parentId
         NodeNew parentNode = nodeRepo.findById(parentId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
-        NodeNew node = NodeNew.from(nodeRequest);
+        NodeNew node = NodeWebRequest.toNode(nodeRequest);
         node.setCreationDate(Instant.now());
         node.setModificationDate(Instant.now());
         node = prepareNodeToSave(space, parentNode, node, nodeRequest);
@@ -72,7 +76,7 @@ public class NodeServiceNew implements INodeService{
         }
     }
 
-    public NodeNew updateNode(String spaceId, String nodeId, NodeRequest nodeRequest) throws CustomException {
+    public NodeNew updateNode(String spaceId, String nodeId, NodeWebRequest nodeRequest) throws CustomException {
         // splicing validation for more details in error cas
         Space space = spaceRepo.findById(spaceId).orElseThrow(()->new CustomException(NO_SPACE_WITH_GIVEN_ID, spaceId));
         NodeNew node = nodeRepo.findById(nodeId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, nodeId));
@@ -83,7 +87,7 @@ public class NodeServiceNew implements INodeService{
         }
         // else we update a node
         NodeNew parentNode = nodeRepo.findById(parentId).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
-        NodeNew.updateWith(node, nodeRequest);
+        NodeWebRequest.updateNodeWith(node, nodeRequest);
         node.setModificationDate(Instant.now());
         node = prepareNodeToSave(space, parentNode, node, nodeRequest);
         try { // catch duplicate key exception
@@ -102,12 +106,12 @@ public class NodeServiceNew implements INodeService{
         return count - nodeRepo.countById(nodeId);
     }
 
-    public NodeNew createRootFolder(Space space, NodeRequest nodeInfo) throws CustomException {
+    public NodeNew createRootFolder(Space space, NodeWebRequest nodeInfo) throws CustomException {
         // custom process for root folders creation
         if(space==null || space.getId()==null)
             throw new CustomException(NO_SPACE_WITH_GIVEN_ID,null);
         nodeInfo.setParentId(null);
-        NodeNew node = NodeNew.from(nodeInfo);
+        NodeNew node = NodeWebRequest.toNode(nodeInfo);
         node.setSpaceId(space.getId());
         node.setSpace(space);
         node.setType(NodeType.FOLDER);
@@ -118,12 +122,12 @@ public class NodeServiceNew implements INodeService{
         }
     }
 
-    private NodeNew updateRootFolder(NodeNew node, Space space, NodeRequest nodeInfo) throws CustomException {
+    private NodeNew updateRootFolder(NodeNew node, Space space, NodeWebRequest nodeInfo) throws CustomException {
         // also for update
         if(space==null || space.getId()==null)
             throw new CustomException(NO_SPACE_WITH_GIVEN_ID,null);
         nodeInfo.setParentId(null);
-        NodeNew.updateWith(node, nodeInfo);
+        NodeWebRequest.updateNodeWith(node, nodeInfo);
         node.setSpaceId(space.getId());
         node.setSpace(space);
         node.setType(NodeType.FOLDER);
@@ -183,7 +187,7 @@ public class NodeServiceNew implements INodeService{
     }
 
     /********** Tools *******************/
-    public NodeNew prepareNodeToSave(Space space, NodeNew parent, NodeNew node, NodeRequest nodeRequest) throws CustomException {
+    public NodeNew prepareNodeToSave(Space space, NodeNew parent, NodeNew node, NodeWebRequest nodeRequest) throws CustomException {
         // adding some fresh information to node before saving it in db
         node.setSpaceId(space.getId());
         node.setSpace(space);

@@ -32,9 +32,6 @@ public class FsFilesService {
    @Autowired
     private GridFsOperations operations;
 
-    @Value("${app.upload.dir}")
-    public String uploadDir;
-
     public ObjectId saveFile(MultipartFile file, Node node) throws CustomException {
         try {
             return gridFsTemplate.store(file.getInputStream(), node.getName(), file.getContentType(), node);

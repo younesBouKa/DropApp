@@ -4,14 +4,16 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import server.user.data.User;
+import server.data.IRole;
+import server.data.IUser;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-public class CustomUserDetails implements UserDetails {
+public class CustomUserDetails implements UserDetails, IUser {
 
     private static final long serialVersionUID = 1L;
 
@@ -21,26 +23,29 @@ public class CustomUserDetails implements UserDetails {
 
     private String email;
 
-    private User user;
+    @JsonIgnore
+    private IUser user;
 
     @JsonIgnore
     private String password;
 
     private Collection<? extends GrantedAuthority> authorities;
 
-    public CustomUserDetails(User user) {
+    public CustomUserDetails(IUser user) {
         this.id = user.getId();
         this.username = user.getUsername();
         this.email = user.getEmail();
         this.password = user.getPassword();
-        List<GrantedAuthority> authorities = user.getRoles().stream()
+        List<GrantedAuthority> authorities = user
+                .getRoles()
+                .stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName()))
                 .collect(Collectors.toList());
         this.authorities = authorities;
         this.user = user;
     }
 
-    public static CustomUserDetails build(User user) {
+    public static CustomUserDetails build(IUser user) {
         return new CustomUserDetails(user);
     }
 
@@ -69,12 +74,12 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;
+        return user.isEnabled();
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return user.isEnabled();
     }
 
     @Override
@@ -84,7 +89,27 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return user.isEnabled();
+    }
+
+    @Override
+    public int getMaxIdleTime() {
+        return user.getMaxIdleTime();
+    }
+
+    @Override
+    public String getHomeDirectory() {
+        return user.getHomeDirectory();
+    }
+
+    @Override
+    public boolean isAdmin() {
+        return user.isAdmin();
+    }
+
+    @Override
+    public Set<IRole> getRoles() {
+        return user.getRoles();
     }
 
     @Override
@@ -97,11 +122,7 @@ public class CustomUserDetails implements UserDetails {
         return Objects.equals(id, user.id);
     }
 
-    public User getUser() {
+    public IUser getUser() {
         return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
     }
 }

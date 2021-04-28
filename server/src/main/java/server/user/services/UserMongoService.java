@@ -7,10 +7,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import server.data.IRole;
+import server.data.IUser;
 import server.exceptions.CustomException;
 import server.security.jwt.JwtUtils;
+import server.user.data.MongoUser;
 import server.user.data.Role;
-import server.user.data.User;
 import server.user.models.JwtResponse;
 import server.user.models.SignInRequest;
 import server.user.models.SignUpRequest;
@@ -38,15 +40,15 @@ public class UserMongoService implements IUserService {
     @Autowired
     AuthenticationManager authenticationManager;
 
-    public Function<SignUpRequest, User> mapSignUpRequestToUser = (signUpRequest -> {
-        User user = new User();
+    public Function<SignUpRequest, IUser> mapSignUpRequestToUser = (signUpRequest -> {
+        MongoUser user = new MongoUser();
         user.setUsername(signUpRequest.getUsername());
         user.setEmail(signUpRequest.getEmail());
         user.setEnabled(true);
         user.setHomeDirectory(signUpRequest.getHomeDirectory());
         user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
         user.setAdmin(false); // to fill authorities
-        Set<Role> roles = signUpRequest.getRoles()
+        Set<IRole> roles = signUpRequest.getRoles()
                 .stream()
                 .filter(Objects::nonNull)
                 .map(String::toUpperCase)
@@ -61,13 +63,16 @@ public class UserMongoService implements IUserService {
     });
 
     @Override
-    public List<User> getUsersByName(String name) {
-        return userRepo.getAllByUsername(name);
+    public List<IUser> getUsersByName(String name) {
+        return userRepo.getAllByUsername(name)
+                .stream()
+                .map(user-> (IUser) user)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<String> getAllUsernames() {
-        return userRepo.getDistinctByUsername().stream().map(User::getUsername).collect(Collectors.toList());
+        return userRepo.getDistinctByUsername().stream().map(IUser::getUsername).collect(Collectors.toList());
     }
 
     @Override
@@ -98,16 +103,17 @@ public class UserMongoService implements IUserService {
     }
 
     @Override
-    public User saveUser(User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setEnabled(true);
-        Role userRole = roleRepo.findByName("USER");
-        user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
-        return userRepo.save(user);
+    public IUser saveUser(IUser user) {
+        MongoUser mongoUser = (MongoUser)user;
+        mongoUser.setPassword(passwordEncoder.encode(user.getPassword()));
+        mongoUser.setEnabled(true);
+        Role role = roleRepo.findByName("ADMIN");
+        mongoUser.setRoles(new HashSet<>(Collections.singletonList(role)));
+        return userRepo.save(mongoUser);
     }
 
     @Override
-    public User registerUser(SignUpRequest signUpRequest) throws CustomException {
+    public MongoUser registerUser(SignUpRequest signUpRequest) throws CustomException {
         if (userRepo.existsByUsername(signUpRequest.getUsername())) {
             throw new CustomException(USERNAME_ALREADY_TAKEN, signUpRequest.getUsername());
         }
@@ -115,18 +121,18 @@ public class UserMongoService implements IUserService {
             throw new CustomException(EMAIL_ALREADY_TAKEN, signUpRequest.getEmail());
         }
         // Create new user's account
-        User user = mapSignUpRequestToUser.apply(signUpRequest);
-        return userRepo.save(user);
+        IUser user = mapSignUpRequestToUser.apply(signUpRequest);
+        return userRepo.save((MongoUser) user);
     }
 
     @Override
-    public User getUserByUsername(String name) {
+    public MongoUser getUserByUsername(String name) {
         return userRepo.findByUsername(name);
     }
 
     @Override
-    public User updateUserByName(String name, String password, boolean enabled, boolean admin) {
-        User user = new User();
+    public MongoUser updateUserByName(String name, String password, boolean enabled, boolean admin) {
+        MongoUser user = new MongoUser();
         user.setUsername(name);
         user.setEnabled(enabled);
         user.setPassword(password);

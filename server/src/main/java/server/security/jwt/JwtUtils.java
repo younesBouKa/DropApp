@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class JwtUtils {
@@ -18,18 +19,22 @@ public class JwtUtils {
     @Value("${app.jwtSecret}")
     private String jwtSecret;
 
-    @Value("${app.jwtExpirationMs}")
-    private int jwtExpirationMs;
+    @Value("${app.jwtExpirationMinute}")
+    private int jwtExpirationMinute;
 
     public String generateJwtToken(Authentication authentication) {
 
         CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
-
+        Map<String, Object> privateClaims = new HashMap<>();
+        privateClaims.put("uid",userPrincipal.getId());
+        privateClaims.put("usr",userPrincipal.getUsername());
+        privateClaims.put("eml",userPrincipal.getEmail());
+        privateClaims.put("hdr",userPrincipal.getHomeDirectory());
         return Jwts.builder()
-                //.addClaims(new HashMap<>()) // add some custom claims
                 .setSubject((userPrincipal.getUsername()))
                 .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMinute*60*1000))
+                .addClaims(privateClaims)
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
     }

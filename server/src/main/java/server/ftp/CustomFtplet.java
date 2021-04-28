@@ -5,22 +5,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import server.data.Node;
+import server.data.NodeType;
 import server.exceptions.CustomException;
-import server.services.NodeService;
+import server.models.NodeFtpRequest;
+import server.services.INodeService;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
 
 @Component
 public class CustomFtplet extends DefaultFtplet implements Ftplet {
 
     @Autowired
-    NodeService nodeService;
+    INodeService nodeService;
     private static final Logger logger = LoggerFactory.getLogger(CustomFtplet.class);
 
     @Override
@@ -45,24 +44,20 @@ public class CustomFtplet extends DefaultFtplet implements Ftplet {
             String fileName = request.getArgument();
             FtpFile ftpFile = session.getFileSystemView().getFile(fileName);
             FtpUser ftpUser = (FtpUser)session.getUser();
-            String homeDir = ftpUser.getHomeDirectory();
-            String relativeParentPath = ftpFile
-                    .getAbsolutePath()
-                    .substring(
-                            0,
-                            ftpFile.getAbsolutePath().lastIndexOf(fileName)
-                    );
-            Path filePath = Paths.get(relativeParentPath,fileName);
-            Path parentPath = filePath.getParent();
+            Path filePath = Paths.get(ftpFile.getAbsolutePath());
             File file = filePath.toFile();
-            Node node = null;
+            NodeFtpRequest nodeFtpRequest = new NodeFtpRequest();
+            nodeFtpRequest.setFile(file);
+            nodeFtpRequest.setName(fileName);
+            nodeFtpRequest.setOwnerName(ftpFile.getOwnerName());
+            nodeFtpRequest.setFileSize(ftpFile.getSize());
+            nodeFtpRequest.setPath(filePath.toString());
+            nodeFtpRequest.setType(file.isFile() ? NodeType.FILE : NodeType.FOLDER);
+            nodeFtpRequest.setUser(ftpUser);
             try {
-                Map<String, Object> metadata = new HashMap<>();
-                metadata.put("parentPath", relativeParentPath);
-                if(file.isFile())
-                    node = nodeService.createFile(ftpFile, metadata,true);
+                nodeService.insertNode(nodeFtpRequest);
             } catch (CustomException e) {
-                logger.error(e.getMessage());
+                logger.error("Error while saving ftp node : '{} '",e);
             }
             logger.info("user:'{}'，Upload file to directory:'{}'，The file name is:'{}，Status: successful!'", ftpUser.getName(), filePath, fileName);
         }

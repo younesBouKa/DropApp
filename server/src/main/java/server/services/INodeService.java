@@ -3,7 +3,8 @@ package server.services;
 import server.data.NodeNew;
 import server.data.Space;
 import server.exceptions.CustomException;
-import server.models.NodeRequest;
+import server.models.NodeFtpRequest;
+import server.models.NodeWebRequest;
 
 import java.util.List;
 
@@ -13,13 +14,15 @@ public interface INodeService {
 
     NodeNew getNodeById(String spaceId, String nodeId) throws CustomException;
 
-    NodeNew insertNode(String spaceId, NodeRequest nodeRequest) throws CustomException;
+    NodeNew insertNode(NodeFtpRequest nodeFtpRequest) throws CustomException;
 
-    NodeNew updateNode(String spaceId, String nodeId, NodeRequest nodeRequest) throws CustomException;
+    NodeNew insertNode(String spaceId, NodeWebRequest nodeRequest) throws CustomException;
+
+    NodeNew updateNode(String spaceId, String nodeId, NodeWebRequest nodeRequest) throws CustomException;
 
     int deleteNode(String spaceId, String nodeId) throws CustomException;
 
-    NodeNew createRootFolder(Space space, NodeRequest nodeInfo) throws CustomException;
+    NodeNew createRootFolder(Space space, NodeWebRequest nodeInfo) throws CustomException;
 
     List<NodeNew> getRootNodes(String spaceId);
 }

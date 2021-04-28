@@ -3,11 +3,11 @@ package server.controllers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import server.data.IUser;
 import server.data.Space;
 import server.exceptions.CustomException;
 import server.models.SpaceRequest;
 import server.services.ISpaceService;
-import server.user.data.User;
 import server.user.services.CustomUserDetails;
 
 import javax.servlet.http.HttpServletRequest;
@@ -70,7 +70,7 @@ public class SpaceController {
     }
 
     /********** tools **********************/
-    public static User currentUser(){
+    public static IUser currentUser(){
         CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return userDetails.getUser();
     }

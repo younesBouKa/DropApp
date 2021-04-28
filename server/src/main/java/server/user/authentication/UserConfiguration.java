@@ -31,10 +31,10 @@ public class UserConfiguration {
         return args -> {
             List<String> rolesName = Arrays.asList("ADMIN", "USER", "MODERATOR");
             rolesName.forEach(name ->{
-                Role adminRole = roleRepository.findByName(name);
-                if (adminRole == null) {
-                    Role newAdminRole = new Role(name);
-                    roleRepository.save(newAdminRole);
+                Role bdRole = roleRepository.findByName(name);
+                if (bdRole == null) {
+                    Role role = new Role(name);
+                    roleRepository.save(role);
                 }
             });
         };

@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import server.data.IUser;
 import server.exceptions.CustomException;
-import server.user.data.User;
 import server.user.models.JwtResponse;
 import server.user.models.SignInRequest;
 import server.user.models.SignUpRequest;
@@ -30,8 +30,8 @@ public class AuthController {
     }
 
     @PostMapping(value = "/signup",consumes = APPLICATION_JSON_VALUE)
-    public User register(@RequestBody SignUpRequest signUpRequest) throws CustomException {
-        User user =  userService.registerUser(signUpRequest);
+    public IUser register(@RequestBody SignUpRequest signUpRequest) throws CustomException {
+        IUser user =  userService.registerUser(signUpRequest);
         return user;
     }
 
@@ -41,7 +41,7 @@ public class AuthController {
     }
 
     /********** tools **********************/
-    public static User currentUser(){
+    public static IUser currentUser(){
         CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return userDetails.getUser();
     }

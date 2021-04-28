@@ -1,10 +1,7 @@
 package server.repositories;
 
-import com.mongodb.lang.NonNullApi;
-import com.sun.istack.internal.NotNull;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 import server.data.Space;
 
@@ -17,6 +14,7 @@ public interface ISpaceRepo extends MongoRepository<Space, String>{
 
 
     List<Space> findAllByOwnerId(String ownerId);
+    List<Space> findByNameAndOwnerId(String name, String ownerId);
     List<Space> findAllByOwnerId(String ownerId, PageRequest pageRequest);
     List<Space> findAllByOwnerIdAndNameContains(String ownerId, String name, PageRequest pageRequest);
     //@Query("{ 'ownedId': ?1 , 'name' : { $regex: ?2 } }")

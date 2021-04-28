@@ -2,20 +2,40 @@ package server.models;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
+import server.data.NodeNew;
 import server.data.NodeType;
 
 import java.io.Serializable;
 import java.util.Map;
 
 @Component
-public class NodeRequest implements Serializable {
+public class NodeWebRequest implements Serializable {
 
-    String name;
-    NodeType type;
-    String path;
-    String parentId;
-    Map<String, Object> fields;
-    MultipartFile file;
+    private String name;
+    private NodeType type;
+    private String path;
+    private String parentId;
+    private Map<String, Object> fields;
+    private MultipartFile file;
+
+    public static NodeNew toNode(NodeWebRequest nodeRequest) {
+        NodeNew node = updateNodeWith(new NodeNew(), nodeRequest);;
+        return node;
+    }
+
+    public static NodeNew updateNodeWith(NodeNew node, NodeWebRequest nodeRequest) {
+        node.setName(nodeRequest.getName());
+        Map<String, Object> fields = nodeRequest.getFields();
+        if (fields!=null){
+            for(String key : fields.keySet()){
+                node.getFields().put(key, fields.get(key));
+            }
+        }
+        node.setParentId(nodeRequest.getParentId()); //
+        node.setPath(nodeRequest.getPath()); //
+        node.setType(nodeRequest.getType()); //
+        return node;
+    }
 
     public String getName() {
         return name;

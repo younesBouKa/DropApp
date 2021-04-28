@@ -4,12 +4,14 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
+import server.data.IRole;
+import server.data.IUser;
 
 import java.util.*;
 
 @CompoundIndexes({@CompoundIndex(name = "username_email", def = "{'username':1,'email':1}")})
 @Document("user")
-public class User {
+public class MongoUser implements IUser {
     @Id
     private String id;
     private String username;
@@ -18,7 +20,7 @@ public class User {
     private boolean enabled;
     private boolean admin;
     private int maxIdleTime = -1;
-    private Set<Role> roles = new HashSet<>(); // for web authentication
+    private Set<IRole> roles = new HashSet<>(); // for web authentication
     private String homeDirectory;
 
     public String getId() {
@@ -77,11 +79,11 @@ public class User {
         this.admin = admin;
     }
 
-    public Set<Role> getRoles() {
+    public Set<IRole> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<Role> roles) {
+    public void setRoles(Set<IRole> roles) {
         this.roles = roles;
     }
 

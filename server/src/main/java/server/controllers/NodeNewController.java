@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import server.exceptions.CustomException;
 import server.exceptions.Message;
-import server.models.NodeRequest;
+import server.models.NodeWebRequest;
 import server.data.NodeNew;
 import server.services.INodeService;
 
@@ -48,10 +48,10 @@ public class NodeNewController {
     public NodeNew saveNode(@PathVariable String spaceId,
                             @RequestPart(value = "file", required = false) MultipartFile file,
                             @RequestParam(value = "nodeInfo", required = true) String nodeInfo) throws CustomException {
-        NodeRequest node = null;
+        NodeWebRequest node = null;
         ObjectMapper mapper = new ObjectMapper();
         try {
-            node = mapper.readValue(nodeInfo, NodeRequest.class);
+            node = mapper.readValue(nodeInfo, NodeWebRequest.class);
         } catch (JsonProcessingException e) {
             throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
@@ -74,10 +74,10 @@ public class NodeNewController {
                               @RequestPart (value = "file", required = false)  MultipartFile file,
                               @RequestParam(value = "nodeInfo", required = true) String nodeInfo,
                              HttpServletRequest request) throws CustomException {
-        NodeRequest node = null;
+        NodeWebRequest node ;
         ObjectMapper mapper = new ObjectMapper();
         try {
-            node = mapper.readValue(nodeInfo, NodeRequest.class);
+            node = mapper.readValue(nodeInfo, NodeWebRequest.class);
         } catch (JsonProcessingException e) {
             throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
