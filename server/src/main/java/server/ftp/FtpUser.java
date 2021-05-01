@@ -29,20 +29,23 @@ public class FtpUser implements User, IUser {
 
 	public String uploadDir = "./uploads";
 
+	public static final int MAX_IDLE_TIME_MINUTE = 10;
 	private static final List<Authority> adminAuthorities = new ArrayList<>(Arrays.asList(new WritePermission("/")));
 	private static final List<Authority> anonAuthorities = new ArrayList<>(Arrays.asList(
-			new ConcurrentLoginPermission(100, 100),
-			new TransferRatePermission(4800, 4800)
+			new ConcurrentLoginPermission(100, 10),
+			new TransferRatePermission(48000, 48000)
 	));
 
 	public FtpUser(IUser user) {
 		String homeDirectory = user.getHomeDirectory();
 		File root = new File(uploadDir);
-		File home = new File(new File(root, user.getUsername()), homeDirectory);
+		File home = new File(new File(root, user.getUsername()+"_"+user.getId()), homeDirectory);
 		Assert.isTrue(home.exists() || home.mkdirs(), "the home directory " + home.getAbsolutePath() + " must exist");
 		List<Authority> authorities = getAuthorities(user);
 		this.username = user.getUsername();
-		this.maxIdleTime = user.getMaxIdleTime() == -1 ? 60_000 : user.getMaxIdleTime();
+		this.maxIdleTime = user.getMaxIdleTime() == -1
+				? 60_000*MAX_IDLE_TIME_MINUTE
+				: user.getMaxIdleTime();
 		this.homeDirectory = home;
 		this.password = user.getPassword();
 		this.enabled = user.isEnabled();

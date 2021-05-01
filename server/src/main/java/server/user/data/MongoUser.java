@@ -7,9 +7,13 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import server.data.IRole;
 import server.data.IUser;
 
+import java.time.Instant;
 import java.util.*;
 
-@CompoundIndexes({@CompoundIndex(name = "username_email", def = "{'username':1,'email':1}")})
+@CompoundIndexes({
+        @CompoundIndex(name = "username_email", def = "{'username':1,'email':1}", unique = true),
+        @CompoundIndex(name = "_id", def = "{'_id':1}", unique = true)
+})
 @Document("user")
 public class MongoUser implements IUser {
     @Id
@@ -20,6 +24,7 @@ public class MongoUser implements IUser {
     private boolean enabled;
     private boolean admin;
     private int maxIdleTime = -1;
+    private Instant birthDate;
     private Set<IRole> roles = new HashSet<>(); // for web authentication
     private String homeDirectory;
 
@@ -95,4 +100,11 @@ public class MongoUser implements IUser {
         this.email = email;
     }
 
+    public Instant getBirthDay() {
+        return birthDate;
+    }
+
+    public void setBirthDay(Instant birthDay) {
+        this.birthDate = birthDay;
+    }
 }

@@ -2,69 +2,72 @@ package server.data;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.query.Update;
 
 import java.io.InputStream;
-import java.util.Date;
+import java.io.Serializable;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-@Document(collection = "node")
-public class Node {
-
-    public static final String SEPARATOR = "/";
-    public static final String ROOT_PATH = "/";
-
+@CompoundIndexes({
+        @CompoundIndex(name = "name_ownerId_parentId", def = "{'name':1, 'parentId':1, 'ownerId':1}", unique = true),
+        @CompoundIndex(name = "_id", def = "{'_id':1}", unique = true)
+})
+@Document(collection = "node_new")
+public class Node implements Serializable {
     @Id
     String id;
-    String path;
-    Permission permission;
-    String parentId;
-    Date createDate;
-    NodeType type;
     String name;
+    String ownerId;
+    NodeType type = NodeType.FOLDER;
+
+    String parentId;
+    List<String> path;
+
+    String originalName;
     String fileId;
-    String contentType;
     long fileSize;
+    String contentType;
+    String extension;
+
+    String label;
+    String description;
+
+    Instant creationDate = Instant.now();
+    Instant modificationDate = Instant.now();
+
+    Map<String, Object> fields = new HashMap<>();
 
     @Transient
     Node parent;
     @Transient
     List<Node> children;
     @Transient
-    InputStream content;
+    InputStream content; // TODO to remove later
 
-    public Node(){
-        this(Node.ROOT_PATH,Permission.READ_WRITE,null,new Date(),NodeType.FOLDER,"root", null, null,0);
-    }
+    public Node(){}
 
-    public Node(String path, Permission permission, String parentId,
-                Date createDate, NodeType type, String name,
-                String fileId, String contentType, long fileSize) {
-        this.path = path;
-        this.permission = permission;
-        this.parentId = parentId;
-        this.createDate = createDate;
-        this.type = type;
+    public Node(String name, String ownerId){
         this.name = name;
-        this.fileId = fileId;
-        this.contentType= contentType;
-        this.fileSize= fileSize;
+        this.ownerId = ownerId;
     }
 
-    public Update createUpdateObj(){
-        Update update = new Update();
-        update.set("parentId", this.getParentId())
-                .set("permission", this.getPermission())
-                .set("createDate", this.getCreateDate())
-                .set("path", this.getPath())
-                .set("type", this.getType())
-                .set("name", this.getName())
-                .set("fileId", this.getFileId())
-                .set("mimeType", this.getContentType())
-                .set("fileSize", this.getFileSize())
-        ;
-        return update;
+    public Node(String name, String ownerId, String parentId){
+        this(name, ownerId);
+        this.parentId = parentId;
+    }
+
+    public Node(String name, String ownerId, List<String> path){
+        this(name, ownerId, null, path);
+    }
+
+    public Node(String name, String ownerId, String parentId, List<String> path){
+        this(name, ownerId, parentId);
+        this.path = path;
     }
 
     public String getId() {
@@ -75,20 +78,52 @@ public class Node {
         this.id = id;
     }
 
-    public String getPath() {
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public NodeType getType() {
+        return type;
+    }
+
+    public void setType(NodeType type) {
+        this.type = type;
+    }
+
+    public String getFileId() {
+        return fileId;
+    }
+
+    public void setFileId(String fileId) {
+        this.fileId = fileId;
+    }
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public List<String> getPath() {
         return path;
     }
 
-    public void setPath(String path) {
-        this.path = path.trim();
-    }
-
-    public Permission getPermission() {
-        return permission;
-    }
-
-    public void setPermission(Permission permission) {
-        this.permission = permission;
+    public void setPath(List<String> path) {
+        this.path = path;
     }
 
     public String getParentId() {
@@ -99,36 +134,28 @@ public class Node {
         this.parentId = parentId;
     }
 
-    public Date getCreateDate() {
-        return createDate;
+    public Map<String, Object> getFields() {
+        return fields;
     }
 
-    public void setCreateDate(Date createDate) {
-        this.createDate = createDate;
+    public void setFields(Map<String, Object> fields) {
+        this.fields = fields;
     }
 
-    public NodeType getType() {
-        return this.type;
+    public Instant getCreationDate() {
+        return creationDate;
     }
 
-    public void setType(NodeType type) {
-        this.type = type;
+    public void setCreationDate(Instant creationDate) {
+        this.creationDate = creationDate;
     }
 
-    public String getName() {
-        return name;
+    public Instant getModificationDate() {
+        return modificationDate;
     }
 
-    public void setName(String name) {
-        this.name = name.trim();
-    }
-
-    public void setFileId(String fileId) {
-        this.fileId = fileId;
-    }
-
-    public String getFileId(){
-        return this.fileId;
+    public void setModificationDate(Instant modificationDate) {
+        this.modificationDate = modificationDate;
     }
 
     public Node getParent() {
@@ -147,14 +174,6 @@ public class Node {
         this.children = children;
     }
 
-    public String getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
-    }
-
     public InputStream getContent() {
         return content;
     }
@@ -163,35 +182,43 @@ public class Node {
         this.content = content;
     }
 
-    public long getFileSize() {
-        return fileSize;
+    public String getOwnerId() {
+        return ownerId;
     }
 
-    public void setFileSize(long fileSize) {
-        this.fileSize = fileSize;
+    public void setOwnerId(String ownerId) {
+        this.ownerId = ownerId;
     }
 
-    public static String getDefaultFolderName(){
-        return "folder_"+new Date().getTime();
+    public String getLabel() {
+        return label;
     }
 
-    public static String getDefaultFileName(){
-        return "file_"+new Date().getTime();
+    public void setLabel(String label) {
+        this.label = label;
     }
 
-    public String getParentFolderPath(){
-        return getPath().substring(0,getPath().lastIndexOf(SEPARATOR));
+    public String getDescription() {
+        return description;
     }
 
-    public boolean isFolder() {
-        return this.getType() == NodeType.FOLDER;
+    public void setDescription(String description) {
+        this.description = description;
     }
 
-    public boolean isFile() {
-        return this.getType() == NodeType.FILE;
+    public String getOriginalName() {
+        return originalName;
     }
 
-    public boolean isLink() {
-        return this.getType() == NodeType.LINK;
+    public void setOriginalName(String originalName) {
+        this.originalName = originalName;
+    }
+
+    public String getExtension() {
+        return extension;
+    }
+
+    public void setExtension(String extension) {
+        this.extension = extension;
     }
 }

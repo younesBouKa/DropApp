@@ -4,7 +4,6 @@ import com.mongodb.client.gridfs.model.GridFSFile;
 import org.apache.ftpserver.ftplet.FtpFile;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.gridfs.GridFsOperations;
@@ -16,7 +15,6 @@ import server.data.Node;
 import server.exceptions.CustomException;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.logging.Logger;
 
 import static server.exceptions.Message.*;

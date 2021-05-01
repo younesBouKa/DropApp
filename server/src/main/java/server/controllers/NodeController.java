@@ -1,208 +1,149 @@
 package server.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
-import server.data.Node;
+import org.springframework.web.multipart.MultipartFile;
+import server.data.IUser;
 import server.exceptions.CustomException;
-import server.services.FsFilesService;
-import server.services.NodeService;
+import server.exceptions.Message;
+import server.models.NodeWebRequest;
+import server.data.Node;
+import server.models.ZipRequest;
+import server.services.INodeService;
+import server.user.services.CustomUserDetails;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
+import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.*;
-import static server.exceptions.Message.*;
+import static java.util.logging.Level.INFO;
+import static java.util.logging.Level.SEVERE;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static server.exceptions.Message.ERROR_WHILE_STREAMING_FILE_CONTENT;
 
 @RestController
-@RequestMapping("/api/node")
+@RequestMapping("/api/v0/nodes")
 public class NodeController {
 
-    private final Logger logger = Logger.getLogger(NodeController.class.getName());
+    private static final Logger logger = Logger.getLogger(NodeController.class.getName());
+    private static final String NEW_ORDER_LOG = "New order was created id:{}";
+    private static final String ORDER_UPDATED_LOG = "Order:{} was updated";
+
+    private final INodeService nodeService;
+
     @Autowired
-    FsFilesService fileService;
-    @Autowired
-    NodeService nodeService;
-
-    @PostMapping(value = "/getNodeById")
-    public Node getNodeById(@RequestBody  Map<String, Object> body,  HttpServletRequest request) throws CustomException {
-        String nodeId = (String)body.getOrDefault("nodeId",null);
-        Node node = nodeService.getNodeById(nodeId);
-        if(node==null)
-            throw new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId);
-        return node;
+    public NodeController(INodeService nodeService) {
+        this.nodeService = nodeService;
     }
 
-    @GetMapping("/getNodeInfoById/{fileId}")
-    public Node getNodeInfoById(@PathVariable String fileId,  HttpServletRequest request) throws CustomException {
-        Node node = nodeService.getNodeInfoById(fileId);
-        if(node==null)
-            throw new CustomException(NO_NODE_WITH_GIVEN_ID,fileId);
-        return node;
+    @GetMapping("")
+    public List<Node> getRootNodes() throws CustomException {
+        return nodeService.getRootNodes(currentUser());
     }
 
-    @PostMapping("/getNodeByPath")
-    public Node getNodeByPath(@RequestBody  Map<String, Object> body,  HttpServletRequest request) throws Exception {
-        String nodePath = (String)body.getOrDefault("nodePath",null);
-        Node node = nodeService.getNodeByPath(nodePath);
-        if(node==null)
-            throw new CustomException(NO_NODE_WITH_GIVEN_PATH, nodePath);
-        return node;
-    }
-
-    @PostMapping("/getNodesByParentId")
-    public List<Node> getNodeByParentId(@RequestBody Map<String, Object> body,  HttpServletRequest request) {
-        String parentId = (String)body.getOrDefault("parentId",null);
-        return nodeService.getNodesByParentId(parentId);
-    }
-    @PostMapping("/getNodesByParentPath")
-    public List<Node> getNodeByParentPath(@RequestBody Map<String, Object> body,  HttpServletRequest request) {
-        String parentPath = (String)body.getOrDefault("parentPath",null);
-        return nodeService.getNodesByParentPath(parentPath);
-    }
-
-    @PostMapping("/getNodesByQuery")
-    public List<Node> getNodesByQuery(@RequestBody Map<String, Object> query,  HttpServletRequest request) {
-        return nodeService.getNodesByQuery(query);
-    }
-
-    @PostMapping("/createFolderNodeWithMetaData")
-    public Node createFolderWithMetaData(@RequestBody Map<String, Object> metaData, HttpServletRequest request) throws Exception {
-        Node node = nodeService.createFolder(metaData);
-        if(node==null)
-            throw new CustomException(CANT_CREATE_FOLDER, metaData);
-        return node;
-    }
-
-    @PostMapping("/createFolderNodeByPath")
-    public Node createFolderWithPath(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
-        String path = (String)body.getOrDefault("path",null);
-        Node node = nodeService.createFolderFromPath(path);
-        if(node==null)
-            throw new CustomException(CANT_CREATE_FOLDER_FROM_PATH, path);
-        return node;
-    }
-
-    @PostMapping("/deleteNodeByPath")
-    public long deleteNodeByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) {
-        String path = (String)body.getOrDefault("path",null);
-        boolean recursive = (boolean)body.getOrDefault("recursive",false);
-        return nodeService.deleteNodeByPath(path, recursive);
-    }
-
-    @PostMapping("/deleteNodeById")
-    public long deleteNodeById(@RequestBody Map<String, Object> body, HttpServletRequest request) {
-        String nodeId = (String)body.getOrDefault("nodeId",null);
-        boolean recursive = (boolean)body.getOrDefault("recursive",false);
-        return nodeService.deleteNodeById(nodeId, recursive);
-    }
-
-    @PostMapping("/deleteNodesById")
-    public List<String> deleteNodesById(@RequestBody Map<String, Object> body, HttpServletRequest request) {
-        List<String> nodesId = (List<String>) body.getOrDefault("nodesId",null);
-        boolean recursive = (boolean)body.getOrDefault("recursive",false);
-        return nodeService.deleteNodesByIds(nodesId, recursive);
-    }
-
-    /*@PostMapping("/hasPermissionById")
-    public boolean hasPermissionById(@RequestBody Map<String, Object> body, HttpServletRequest request) {
-        String nodeId = (String)body.getOrDefault("nodeId",null);
-        Object permission = body.getOrDefault("permission", Permission.READ_WRITE);
-        return nodeService.hasPermissionById(nodeId,permission);
-    }
-
-    @PostMapping("/hasPermissionByPath")
-    public boolean hasPermissionByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) {
-        String nodePath = (String)body.getOrDefault("nodePath",null);
-        Object permission = body.getOrDefault("permission", Permission.READ_WRITE);
-        return nodeService.hasPermissionByPath(nodePath,permission);
-    }*/
-
-    @PostMapping("/copyNodeByPath")
-    public Node copyNodeByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
-        String srcPath = (String)body.getOrDefault("srcPath",null);
-        String destPath = (String)body.getOrDefault("destPath",null);
-        return nodeService.copyNodeWithPath(srcPath,destPath,false);
-    }
-
-    @PostMapping("/copyNodeById")
-    public Node copyNodeById(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
-        String srcId = (String)body.getOrDefault("srcId",null);
-        String destId = (String)body.getOrDefault("destId",null);
-        return nodeService.copyNodeWithId(srcId,destId,false);
-    }
-
-    @PostMapping("/moveNodeByPath")
-    public Node moveNodeByPath(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
-        String srcPath = (String)body.getOrDefault("srcPath",null);
-        String destPath = (String)body.getOrDefault("destPath",null);
-        return nodeService.copyNodeWithPath(srcPath,destPath,true);
-    }
-
-    @PostMapping("/moveNodeById")
-    public Node moveNodeById(@RequestBody Map<String, Object> body, HttpServletRequest request) throws Exception {
-        String srcId = (String)body.getOrDefault("srcId",null);
-        String destId = (String)body.getOrDefault("destId",null);
-        return nodeService.copyNodeWithId(srcId,destId,true);
-    }
-
-    @GetMapping("/streamContent/{nodeId}")
-    public void streamFileContent(@PathVariable String nodeId, HttpServletRequest request, HttpServletResponse response) throws Exception {
-        logger.log(INFO, String.format("streaming node content %s %n", nodeId));
-        Node node = nodeService.getNodeInfoById(nodeId);
-        if(node==null)
-            throw new CustomException(NO_NODE_WITH_GIVEN_ID, nodeId);
-        response.setHeader("content-type",node.getContentType());
+    @PostMapping
+    public Node saveRootNode(@RequestPart(value = "file", required = false) MultipartFile file,
+                             @RequestParam(value = "nodeInfo") String nodeInfo) throws CustomException {
+        NodeWebRequest node = null;
+        ObjectMapper mapper = new ObjectMapper();
         try {
-            FileCopyUtils.copy(node.getContent(), response.getOutputStream());
-        } catch (IOException e) {
-            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", node.getName(), e.getMessage()));
-            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, node.getName());
+            node = mapper.readValue(nodeInfo, NodeWebRequest.class);
+        } catch (JsonProcessingException e) {
+            throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
+        node.setFile(file);
+        Node createdNode = nodeService.insertNode(currentUser(), node);
+        return createdNode;
     }
 
-    @GetMapping("/getCompressedFolder/{folderId}")
-    public void getCompressedFolder(@PathVariable String folderId, HttpServletRequest request, HttpServletResponse response) throws Exception {
-        logger.log(INFO, String.format("streaming zip content %s %n", folderId));
-        File zipFile = nodeService.zipFolderContentById(folderId, null);
-        try {
-            response.setHeader("content-type", Files.probeContentType(zipFile.toPath()));
-            FileCopyUtils.copy(Files.readAllBytes(zipFile.toPath()), response.getOutputStream());
+    @GetMapping(value = "/{nodeId}")
+    public Node getNodeById(@PathVariable String nodeId) throws CustomException {
+        Node node = nodeService.getNodeById(currentUser(), nodeId);
+        return node;
+    }
+
+    @GetMapping(value = "/{nodeId}/stream")
+    public Node getNodeContent(@PathVariable String nodeId, HttpServletRequest request, HttpServletResponse response) throws CustomException {
+        logger.log(INFO, String.format("streaming file %s %n", nodeId));
+        Node node = nodeService.getNodeContent(currentUser(), nodeId);
+        try(InputStream inputStream = node.getContent()){
+            FileCopyUtils.copy(inputStream, response.getOutputStream());
         } catch (Exception e) {
-            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", folderId, e.getMessage()));
-            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, folderId);
-        } finally {
-            deleteFile(zipFile);
+            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", nodeId, e.getMessage()));
+            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, nodeId);
         }
+        return node;
     }
 
-    @PostMapping("/getCompressedNodes")
-    public void getCompressedNodes(@RequestBody List<String> nodesId, HttpServletRequest request, HttpServletResponse response) throws Exception {
-        logger.log(INFO, String.format("streaming zip content %s %n", nodesId));
-        File zipFile = nodeService.zipNodesById(nodesId, null);
-        try {
-            response.setHeader("content-type", Files.probeContentType(zipFile.toPath()));
-            FileCopyUtils.copy(Files.readAllBytes(zipFile.toPath()), response.getOutputStream());
-        } catch (Exception e) {
-            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", nodesId, e.getMessage()));
-            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, nodesId);
-        }finally {
-            deleteFile(zipFile);
-        }
+    @PostMapping(value = "/compress")
+    public Node zipNodes(@RequestBody ZipRequest zipRequest,
+                         HttpServletRequest request,
+                         HttpServletResponse response) throws CustomException {
+        logger.log(INFO, String.format("zipped nodes %s %n", zipRequest));
+        return nodeService.createZipNode(currentUser(), zipRequest);
     }
 
-    public void deleteFile(File file) throws Exception {
+    @GetMapping("/{parentId}/children")
+    public List<Node> getNodes(@PathVariable String parentId,
+                               @RequestParam(required = false, name = "page", defaultValue = "0") int page,
+                               @RequestParam(required = false, name = "size", defaultValue = "20") int size,
+                               @RequestParam(required = false, name = "sortField", defaultValue = "creationDate") String sortField,
+                               @RequestParam(required = false, name = "direction", defaultValue = "DESC") String direction,
+                               @RequestParam(required = false, name = "status") List<String> status,
+                               @RequestParam(required = false, name = "search", defaultValue = "") String search) throws CustomException {
+
+        return nodeService.getNodes(currentUser(), parentId, page, size, sortField, direction, status, search);
+    }
+
+    @PostMapping("/{parentId}")
+    public Node saveNode(@PathVariable(required = false, name = "parentId") String parentId,
+                         @RequestPart(value = "file", required = false) MultipartFile file,
+                         @RequestParam(value = "nodeInfo") String nodeInfo) throws CustomException {
+        NodeWebRequest node = null;
+        ObjectMapper mapper = new ObjectMapper();
         try {
-            Files.deleteIfExists(file.toPath());
-        } catch (Exception e) {
-            logger.log(SEVERE, String.format("Error while deleting file: %s, Error: %s%n", file.getName(),e.getMessage()));
-            throw new CustomException(ERROR_WHILE_DELETING_FILE, file);
+            node = mapper.readValue(nodeInfo, NodeWebRequest.class);
+        } catch (JsonProcessingException e) {
+            throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
+        node.setParentId(parentId);
+        node.setFile(file);
+        Node createdNode = nodeService.insertNode(currentUser(), node);
+        return createdNode;
+    }
+
+    @PutMapping(path = "/{nodeId}")
+    public Node updateNode(@PathVariable String nodeId,
+                           @RequestPart (value = "file", required = false)  MultipartFile file,
+                           @RequestParam(value = "nodeInfo") String nodeInfo,
+                           HttpServletRequest request) throws CustomException {
+        NodeWebRequest node ;
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            node = mapper.readValue(nodeInfo, NodeWebRequest.class);
+        } catch (JsonProcessingException e) {
+            throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
+        }
+        node.setFile(file);
+        Node createdNode = nodeService.updateNode(currentUser(), nodeId, node);
+        return createdNode;
+    }
+
+    @DeleteMapping(path = "/{nodeId}", consumes = APPLICATION_JSON_VALUE)
+    public int deleteNode(@PathVariable String nodeId,
+                             HttpServletRequest request) throws CustomException {
+
+        return nodeService.deleteNode(currentUser(), nodeId);
+    }
+    /********** tools **********************/
+    public static IUser currentUser(){
+        CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userDetails.getUser();
     }
 }

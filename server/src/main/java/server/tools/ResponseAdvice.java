@@ -13,11 +13,15 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import server.exceptions.CustomException;
+import server.user.controllers.TestController;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 @ControllerAdvice
 public class ResponseAdvice implements ResponseBodyAdvice<Object> {
-
+    private static final Logger logger = Logger.getLogger(ResponseAdvice.class.getName());
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
         return true;

@@ -14,25 +14,25 @@ public class TestController {
     private static final Logger logger = Logger.getLogger(TestController.class.getName());
 
     @GetMapping("/all")
-    public Object allAccess() {
+    public String allAccess() {
         return "Public Content.";
     }
 
     @GetMapping("/user")
     @PreAuthorize("hasRole('USER') or hasRole('MODERATOR') or hasRole('ADMIN')")
-    public Object userAccess() {
+    public String userAccess() {
         return "User Content.";
     }
 
     @GetMapping("/mod")
     @PreAuthorize("hasRole('MODERATOR')")
-    public Object moderatorAccess() {
+    public String moderatorAccess() {
         return "Moderator Board.";
     }
 
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public Object adminAccess() {
+    public String adminAccess() {
         return "Admin Board.";
     }
 

@@ -1,52 +1,92 @@
 package server.models;
 
+import org.apache.commons.io.FilenameUtils;
+import org.apache.ftpserver.ftplet.FtpFile;
 import org.springframework.stereotype.Component;
 import server.data.IUser;
-import server.data.NodeNew;
+import server.data.Node;
 import server.data.NodeType;
+import server.exceptions.CustomException;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
+import java.net.URLConnection;
+import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import static server.exceptions.Message.ERROR_WHILE_READING_FILE_CONTENT;
 
 @Component
 public class NodeFtpRequest implements Serializable {
 
     private String name;
-    private NodeType type;
-    private String contentType;
-    private String parentId;
-    private String spaceId;
-    private String path;
-    private File file;
-    private String ownerName;
-    private long fileSize;
-    private Map<String, Object> fields = new HashMap<>();
     private IUser user;
+    private FtpFile file;
+    private NodeType type;
+    private String ownerId;
+    private long fileSize;
+    private List<String> path;
+    private String contentType;
+    private Map<String, Object> fields = new HashMap<>();
 
-    public static NodeNew toNode(NodeFtpRequest nodeFtpRequest) {
-        NodeNew node = updateNodeWith(new NodeNew(), nodeFtpRequest);;
+    public NodeFtpRequest(){
+        this.fields.put("from","FTP");
+        this.type = NodeType.FILE;
+    }
+
+    public NodeFtpRequest(IUser user, FtpFile file, List<String> path){
+        this();
+        // owner infos
+        this.setUser(user);
+        this.setOwnerId(user.getId());
+        // file infos
+        this.setType(file.isFile() ? NodeType.FILE : NodeType.FOLDER);
+        String contentType = URLConnection.getFileNameMap().getContentTypeFor(file.getName());
+        this.setContentType(contentType);
+        this.setPath(path);
+        this.setName(file.getName());
+        this.setFile(file);
+        this.setFileSize(file.getSize());
+    }
+
+    public static Node toNode(NodeFtpRequest nodeFtpRequest) {
+        Node node = updateNodeWith(new Node(), nodeFtpRequest);;
         return node;
     }
 
-    public static NodeNew updateNodeWith(NodeNew node, NodeFtpRequest nodeFtpRequest) {
-        node.setName(nodeFtpRequest.getName());
+    public static Node updateNodeWith(Node node, NodeFtpRequest nodeFtpRequest) {
         Map<String, Object> fields = nodeFtpRequest.getFields();
         if (fields!=null){
             for(String key : fields.keySet()){
                 node.getFields().put(key, fields.get(key));
             }
         }
-        node.setSpaceId(nodeFtpRequest.getSpaceId());
-        node.setParentId(nodeFtpRequest.getParentId());
+        node.setName(nodeFtpRequest.getName());
+        node.setExtension(FilenameUtils.getExtension(nodeFtpRequest.getOriginalName()));
+        node.setOriginalName(nodeFtpRequest.getOriginalName());
+        node.setOwnerId(nodeFtpRequest.getUser().getId());
         node.setPath(nodeFtpRequest.getPath());
         node.setType(nodeFtpRequest.getType());
         node.setContentType(nodeFtpRequest.getContentType());
         node.setFileSize(nodeFtpRequest.getFileSize());
+        node.setModificationDate(Instant.now());
         return node;
     }
 
+    public InputStream getFileContent() throws CustomException {
+        try {
+            return getFile().createInputStream(0);
+        }catch (IOException e){
+            throw new CustomException(e, ERROR_WHILE_READING_FILE_CONTENT, getName());
+        }
+    }
+
+    public String getOriginalName(){
+        return getFile()!=null ? getFile().getName() : getName();
+    }
 
     public String getName() {
         return name;
@@ -72,20 +112,12 @@ public class NodeFtpRequest implements Serializable {
         this.contentType = contentType;
     }
 
-    public String getParentId() {
-        return parentId;
+    public String getOwnerId() {
+        return ownerId;
     }
 
-    public void setParentId(String parentId) {
-        this.parentId = parentId;
-    }
-
-    public String getSpaceId() {
-        return spaceId;
-    }
-
-    public void setSpaceId(String spaceId) {
-        this.spaceId = spaceId;
+    public void setOwnerId(String ownerId) {
+        this.ownerId = ownerId;
     }
 
     public Map<String, Object> getFields() {
@@ -96,28 +128,20 @@ public class NodeFtpRequest implements Serializable {
         this.fields = fields;
     }
 
-    public String getPath() {
+    public List<String> getPath() {
         return path;
     }
 
-    public void setPath(String path) {
+    public void setPath(List<String> path) {
         this.path = path;
     }
 
-    public File getFile() {
+    public FtpFile getFile() {
         return file;
     }
 
-    public void setFile(File file) {
+    public void setFile(FtpFile file) {
         this.file = file;
-    }
-
-    public String getOwnerName() {
-        return ownerName;
-    }
-
-    public void setOwnerName(String ownerName) {
-        this.ownerName = ownerName;
     }
 
     public long getFileSize() {

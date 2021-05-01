@@ -9,10 +9,10 @@ import org.springframework.data.mongodb.gridfs.GridFsOperations;
 import org.springframework.data.mongodb.gridfs.GridFsResource;
 import org.springframework.data.mongodb.gridfs.GridFsTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
+import server.data.Node;
 import server.exceptions.CustomException;
 
-import java.io.IOException;
+import java.io.InputStream;
 import java.util.logging.Logger;
 
 import static server.exceptions.Message.*;
@@ -26,12 +26,9 @@ public class FileMongoRepo implements IFileRepo{
     @Autowired
     private GridFsOperations operations;
 
-    public ObjectId saveFile(MultipartFile file, Object metaData) throws CustomException {
-        try {
-            return gridFsTemplate.store(file.getInputStream(), file.getOriginalFilename(), file.getContentType(), metaData);
-        }catch (IOException e){
-            throw new CustomException(ERROR_WHILE_SAVING_FILE, file.getOriginalFilename());
-        }
+    @Override
+    public ObjectId saveFile(InputStream inputStream, Node node) throws CustomException {
+        return gridFsTemplate.store(inputStream, node.getName(), node.getContentType(), node);
     }
 
     public void deleteFile(String fileId){

@@ -6,10 +6,8 @@ import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
-import server.data.Node;
 import server.exceptions.CustomException;
 import server.services.FsFilesService;
-import server.services.NodeService;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -27,7 +25,7 @@ import static server.exceptions.Message.*;
 @RequestMapping("/api/file")
 public class FileUploadController {
 
-    private final Logger logger = Logger.getLogger(FileUploadController.class.getName());
+    /*private final Logger logger = Logger.getLogger(FileUploadController.class.getName());
     @Autowired
     FsFilesService fileService;
     @Autowired
@@ -81,5 +79,5 @@ public class FileUploadController {
         if(metaData.containsKey("upsert") && metaData.get("upsert")!=null && ((String[])metaData.get("upsert")).length>0)
             upsert = Boolean.getBoolean(((String[])metaData.get("upsert"))[0]);
         return nodeService.createFile(file, metaData, upsert);
-    }
+    }*/
 }

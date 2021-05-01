@@ -47,7 +47,7 @@ public class UserMongoService implements IUserService {
         user.setEnabled(true);
         user.setHomeDirectory(signUpRequest.getHomeDirectory());
         user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
-        user.setAdmin(false); // to fill authorities
+        user.setAdmin(true); // to fill authorities
         Set<IRole> roles = signUpRequest.getRoles()
                 .stream()
                 .filter(Objects::nonNull)
@@ -107,6 +107,7 @@ public class UserMongoService implements IUserService {
         MongoUser mongoUser = (MongoUser)user;
         mongoUser.setPassword(passwordEncoder.encode(user.getPassword()));
         mongoUser.setEnabled(true);
+        mongoUser.setAdmin(true);
         Role role = roleRepo.findByName("ADMIN");
         mongoUser.setRoles(new HashSet<>(Collections.singletonList(role)));
         return userRepo.save(mongoUser);
