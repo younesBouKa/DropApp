@@ -1,15 +1,12 @@
 {
-	"variables": [],
 	"info": {
+		"_postman_id": "725157b9-586a-49c7-a574-c301d170621d",
 		"name": "Drop",
-		"_postman_id": "59bc0abc-6160-a6e8-acc5-0a20d0e1ac32",
-		"description": "",
-		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
 			"name": "auth",
-			"description": "",
 			"item": [
 				{
 					"name": "signUp",
@@ -17,29 +14,49 @@
 						{
 							"listen": "test",
 							"script": {
-								"type": "text/javascript",
 								"exec": [
+									"var res = pm.response.json();",
+									"pm.test(\"Status code is 200\", function () {",
+									"        pm.response.to.have.status(200);",
+									"});",
 									"",
-									""
-								]
+									"pm.test(\"status ok\",function(){",
+									"    pm.expect(res.ok).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"user to be created\",function(){",
+									"    pm.expect(res.data.id).to.be.string();",
+									"});"
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
 					"request": {
-						"url": "localhost:8090/api/v0/auth/signup",
 						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
-								"value": "application/json",
-								"description": ""
+								"value": "application/json"
 							}
 						],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n\t\"username\": \"younes\",\n\t\"email\" : \"younes@gmail.com\",\n\t\"password\" : \"pass\",\n\t\"roles\" : [\"user\",\"admin\"],\n\t\"homeDirectory\" : \"toto\"\n}"
 						},
-						"description": ""
+						"url": {
+							"raw": "localhost:8090/api/v0/auth/signup",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"auth",
+								"signup"
+							]
+						}
 					},
 					"response": []
 				},
@@ -49,128 +66,49 @@
 						{
 							"listen": "test",
 							"script": {
-								"type": "text/javascript",
 								"exec": [
-									"var res = JSON.parse(responseBody);",
+									"var res = pm.response.json();",
+									"pm.test(\"Status code is 200\", function () {",
+									"        pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"to be ok\",function(){",
+									"    pm.expect(res.ok).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"to have data\",function(){",
+									"    pm.expect(res).to.be.ownProperty(\"data\");",
+									"});",
+									"",
+									"pm.test(\"to have token\",function(){",
+									"    pm.expect(res.data).to.be.ownProperty(\"token\");",
+									"});",
+									"",
 									"",
 									"if(res && res.ok){",
 									"    var token = res.data.token; ",
 									"    postman.setEnvironmentVariable(\"token\", \"Bearer \"+token);",
 									"}",
 									""
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
 					"request": {
-						"url": "localhost:8090/api/v0/auth/login",
 						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
-								"value": "application/json",
-								"description": ""
+								"value": "application/json"
 							}
 						],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n\t\"username\": \"younes\",\n\t\"password\" : \"pass\"\n}"
 						},
-						"description": ""
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "space",
-			"description": "",
-			"item": [
-				{
-					"name": "insertSpace",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"type": "text/javascript",
-								"exec": [
-									"var res = JSON.parse(responseBody);",
-									"",
-									"if(res && res.ok){",
-									"    var spaceId = res.data.id; ",
-									"    postman.setEnvironmentVariable(\"spaceId\", spaceId);",
-									"    var roots = res.data.roots;",
-									"    if(roots.length>0){",
-									"        var parentId = roots[0].id; ",
-									"        postman.setEnvironmentVariable(\"parentId\", parentId);",
-									"    }",
-									"}",
-									""
-								]
-							}
-						}
-					],
-					"request": {
-						"url": "localhost:8090/api/v0/spaces",
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"description": ""
-							},
-							{
-								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"name\" : \"space 1\",\n\t\"fields\" : {\"some_fields\": \"test\"}\n}"
-						},
-						"description": ""
-					},
-					"response": []
-				},
-				{
-					"name": "getSpace",
-					"request": {
-						"url": "localhost:8090/api/v0/spaces/{{spaceId}}",
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "file",
-									"value": "",
-									"description": "",
-									"type": "file"
-								},
-								{
-									"key": "nodeInfo",
-									"value": "{\"name\" : \"my file\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {}}",
-									"description": "",
-									"type": "text"
-								}
-							]
-						},
-						"description": ""
-					},
-					"response": []
-				},
-				{
-					"name": "getSpacesByQuery",
-					"request": {
 						"url": {
-							"raw": "localhost:8090/api/v0/spaces?search=s",
+							"raw": "localhost:8090/api/v0/auth/login",
 							"host": [
 								"localhost"
 							],
@@ -178,36 +116,10 @@
 							"path": [
 								"api",
 								"v0",
-								"spaces"
-							],
-							"query": [
-								{
-									"key": "search",
-									"value": "s",
-									"equals": true,
-									"description": ""
-								}
-							],
-							"variable": []
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"description": ""
-							},
-							{
-								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"name\" : \"space\",\n\t\"ownerId\": \"ownerid\",\n\t\"rootPath\" : \"/\"\n}"
-						},
-						"description": ""
+								"auth",
+								"login"
+							]
+						}
 					},
 					"response": []
 				}
@@ -215,15 +127,13 @@
 		},
 		{
 			"name": "node",
-			"description": "",
 			"item": [
 				{
-					"name": "insertFile",
+					"name": "insertHugeFile",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
-								"type": "text/javascript",
 								"exec": [
 									"var res = JSON.parse(responseBody);",
 									"",
@@ -232,18 +142,17 @@
 									"    postman.setEnvironmentVariable(\"nodeId\", nodeid);",
 									"}",
 									""
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
 					"request": {
-						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/",
 						"method": "POST",
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
+								"value": "{{token}}"
 							}
 						],
 						"body": {
@@ -251,159 +160,18 @@
 							"formdata": [
 								{
 									"key": "file",
-									"description": "",
 									"type": "file",
-									"src": "notes.txt"
+									"src": "/C:/Users/yboukanoucha/Desktop/hugeFile.zip"
 								},
 								{
 									"key": "nodeInfo",
-									"value": "{\"name\" : \"file 3\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {\"toto\":\"test\"}}",
-									"description": "",
+									"value": "{\"name\":\"myFile\",\"fields\" : {\"huge\":\"file\"}}",
 									"type": "text"
 								}
 							]
 						},
-						"description": ""
-					},
-					"response": []
-				},
-				{
-					"name": "createRootFolder",
-					"request": {
-						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/",
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "file",
-									"value": "",
-									"description": "",
-									"type": "file"
-								},
-								{
-									"key": "nodeInfo",
-									"value": "{\"name\" : \"folder 2\",\"type\":\"FOLDER\",\"fields\" : {\"toto\":\"test\"}}",
-									"description": "",
-									"type": "text"
-								}
-							]
-						},
-						"description": ""
-					},
-					"response": []
-				},
-				{
-					"name": "createFolderNode",
-					"request": {
-						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/",
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "file",
-									"value": "",
-									"description": "",
-									"type": "file"
-								},
-								{
-									"key": "nodeInfo",
-									"value": "{\"name\" : \"folder 4\", \"type\":\"FOLDER\",\"parentId\":\"{{parentId}}\",\"fields\" : {\"toto\":\"test\"}}",
-									"description": "",
-									"type": "text"
-								}
-							]
-						},
-						"description": ""
-					},
-					"response": []
-				},
-				{
-					"name": "updateFile",
-					"request": {
-						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/{{nodeId}}",
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "file",
-									"description": "",
-									"type": "file",
-									"src": "Fichier_signer.pdf"
-								},
-								{
-									"key": "nodeInfo",
-									"value": "{\"name\" : \"file 2\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {\"toto\":\"test\"}}",
-									"description": "",
-									"type": "text"
-								}
-							]
-						},
-						"description": ""
-					},
-					"response": []
-				},
-				{
-					"name": "getNode",
-					"request": {
-						"url": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/{{parentId}}",
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "file",
-									"value": "",
-									"description": "",
-									"type": "file"
-								},
-								{
-									"key": "nodeInfo",
-									"value": "{\"name\" : \"my file\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {}}",
-									"description": "",
-									"type": "text"
-								}
-							]
-						},
-						"description": ""
-					},
-					"response": []
-				},
-				{
-					"name": "getNodesByQuery",
-					"request": {
 						"url": {
-							"raw": "localhost:8090/api/v0/spaces/{{spaceId}}/nodes/children/{{parentId}}?search=file",
+							"raw": "localhost:8090/api/v0/nodes",
 							"host": [
 								"localhost"
 							],
@@ -411,28 +179,37 @@
 							"path": [
 								"api",
 								"v0",
-								"spaces",
-								"{{spaceId}}",
-								"nodes",
-								"children",
-								"{{parentId}}"
-							],
-							"query": [
-								{
-									"key": "search",
-									"value": "file",
-									"equals": true,
-									"description": ""
-								}
-							],
-							"variable": []
-						},
-						"method": "GET",
+								"nodes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "insertFile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var res = JSON.parse(responseBody);",
+									"",
+									"if(res && res.ok){",
+									"    var nodeid = res.data.id; ",
+									"    postman.setEnvironmentVariable(\"nodeId\", nodeid);",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
+								"value": "{{token}}"
 							}
 						],
 						"body": {
@@ -440,19 +217,304 @@
 							"formdata": [
 								{
 									"key": "file",
-									"value": "",
-									"description": "",
-									"type": "file"
+									"type": "file",
+									"src": []
 								},
 								{
 									"key": "nodeInfo",
-									"value": "{\"name\" : \"my file\",\"type\" : \"FILE\",\"parentId\":\"{{parentId}}\",\"fields\" : {}}",
-									"description": "",
+									"value": "{\"fields\" : {\"text\":\"file\"}}",
 									"type": "text"
 								}
 							]
 						},
-						"description": ""
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateFile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/yboukanoucha/Desktop/vocabularies.txt"
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"toto file\", \"description\":\"toto .....\",\"fields\" : {\"update\":9, \"toto\":\"update 3\"}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes/60916825c14eec0309cfc22d",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes",
+								"60916825c14eec0309cfc22d"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateFileWithChunks",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}"
+							},
+							{
+								"key": "x-chunk-start-pos",
+								"value": "12",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "nodeInfo",
+									"value": "{\"name\" : \"compressed file\",\"fields\" : {\"update\":9, \"toto\":\"update 3\"}}",
+									"type": "text"
+								},
+								{
+									"key": "chunk",
+									"value": "RGVjb2RlIGFuZCBFbmNvZGUNCg==",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes/60918f5eee4e4149a64bf9f4",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes",
+								"60918f5eee4e4149a64bf9f4"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getNode",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}"
+							}
+						],
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes/608dbcfc34ac74178756efbd",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes",
+								"608dbcfc34ac74178756efbd"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "test",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}"
+							}
+						],
+						"url": {
+							"raw": "localhost:8090/api/v0/test/all",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"test",
+								"all"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "zipNodes",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"compressedZip.zip\",\r\n    \"fields\" : {\"test\":\"zip ok\"},\r\n    \"nodesId\" : [\r\n        \"609144d6bddc223f0cbebcf3\"\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes/compress",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes",
+								"compress"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getNodeContent",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}"
+							},
+							{
+								"key": "If-Range",
+								"value": "Wed, 21 Oct 2020 07:28:00 GMT",
+								"type": "text",
+								"disabled": true
+							},
+							{
+								"key": "Range",
+								"value": "bytes=453-1900",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes/60918f5eee4e4149a64bf9f4/stream",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes",
+								"60918f5eee4e4149a64bf9f4",
+								"stream"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getRoots",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}"
+							}
+						],
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getNodesByQuery",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{token}}"
+							}
+						],
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes/608d6b063083550b82a821e8/children?search=f",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes",
+								"608d6b063083550b82a821e8",
+								"children"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "f"
+								}
+							]
+						}
 					},
 					"response": []
 				}
@@ -460,30 +522,38 @@
 		},
 		{
 			"name": "clear",
-			"description": "",
 			"item": [
 				{
 					"name": "deleteNode",
 					"request": {
-						"url": "localhost:8090/api/v0/spaces/{{parentId}}/nodes/{{nodeId}}",
 						"method": "DELETE",
 						"header": [
 							{
 								"key": "Content-Type",
-								"value": "application/json",
-								"description": ""
+								"value": "application/json"
 							},
 							{
 								"key": "Authorization",
-								"value": "{{token}}",
-								"description": ""
+								"value": "{{token}}"
 							}
 						],
 						"body": {
 							"mode": "raw",
 							"raw": ""
 						},
-						"description": ""
+						"url": {
+							"raw": "localhost:8090/api/v0/nodes/{{nodeId}}",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"api",
+								"v0",
+								"nodes",
+								"{{nodeId}}"
+							]
+						}
 					},
 					"response": []
 				}

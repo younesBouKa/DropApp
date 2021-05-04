@@ -2,7 +2,9 @@ package server.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
@@ -18,14 +20,17 @@ import server.user.services.CustomUserDetails;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.InputStream;
+import java.io.*;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.SEVERE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-import static server.exceptions.Message.ERROR_WHILE_STREAMING_FILE_CONTENT;
+import static server.exceptions.Message.*;
 
 @RestController
 @RequestMapping("/api/v0/nodes")
@@ -57,7 +62,9 @@ public class NodeController {
         } catch (JsonProcessingException e) {
             throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
-        node.setFile(file);
+        if(file!=null){
+            node.updateWithFile(file);
+        }
         Node createdNode = nodeService.insertNode(currentUser(), node);
         return createdNode;
     }
@@ -69,16 +76,10 @@ public class NodeController {
     }
 
     @GetMapping(value = "/{nodeId}/stream")
-    public Node getNodeContent(@PathVariable String nodeId, HttpServletRequest request, HttpServletResponse response) throws CustomException {
+    public void getNodeContent(@PathVariable String nodeId, HttpServletRequest request, HttpServletResponse response) throws CustomException {
         logger.log(INFO, String.format("streaming file %s %n", nodeId));
         Node node = nodeService.getNodeContent(currentUser(), nodeId);
-        try(InputStream inputStream = node.getContent()){
-            FileCopyUtils.copy(inputStream, response.getOutputStream());
-        } catch (Exception e) {
-            logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", nodeId, e.getMessage()));
-            throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, nodeId);
-        }
-        return node;
+        getContentWithRange(node, request, response);
     }
 
     @PostMapping(value = "/compress")
@@ -112,8 +113,8 @@ public class NodeController {
         } catch (JsonProcessingException e) {
             throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
+        node.updateWithFile(file);
         node.setParentId(parentId);
-        node.setFile(file);
         Node createdNode = nodeService.insertNode(currentUser(), node);
         return createdNode;
     }
@@ -121,8 +122,10 @@ public class NodeController {
     @PutMapping(path = "/{nodeId}")
     public Node updateNode(@PathVariable String nodeId,
                            @RequestPart (value = "file", required = false)  MultipartFile file,
+                           @RequestPart (value = "chunk", required = false)  String chunk,
                            @RequestParam(value = "nodeInfo") String nodeInfo,
-                           HttpServletRequest request) throws CustomException {
+                           HttpServletRequest request,
+                           HttpServletResponse response) throws CustomException {
         NodeWebRequest node ;
         ObjectMapper mapper = new ObjectMapper();
         try {
@@ -130,7 +133,11 @@ public class NodeController {
         } catch (JsonProcessingException e) {
             throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
         }
-        node.setFile(file);
+        node.updateWithFile(file);
+        if(request.getHeader("x-chunk-start-pos")!=null && chunk!=null){
+            Node savedNode = nodeService.getNodeContent(currentUser(), nodeId);
+            node = prepareUpdateWithChunks(savedNode, node, chunk, request, response);
+        }
         Node createdNode = nodeService.updateNode(currentUser(), nodeId, node);
         return createdNode;
     }
@@ -142,6 +149,112 @@ public class NodeController {
         return nodeService.deleteNode(currentUser(), nodeId);
     }
     /********** tools **********************/
+    public void getContentWithRange(Node node, HttpServletRequest request, HttpServletResponse response) throws CustomException {
+        try {
+            // content length
+            long resourceLength = node.getFileSize();
+            // fill response header
+            response.setHeader("Accept-Ranges","bytes");
+            response.setHeader("Content-Length",String.valueOf(node.getFileSize()));
+            response.setHeader("Content-Type", node.getContentType());
+            // validate if-range header
+            long ifRangeHeader = request.getDateHeader("if-range");// ex: (If-Range: Wed, 21 Oct 2015 07:28:00 GMT)
+            Instant lastRequestInstant = Instant.ofEpochMilli(ifRangeHeader);
+            boolean isIfRangeHeaderFullFilled = node.getModificationDate().isAfter(lastRequestInstant);
+            if(!isIfRangeHeaderFullFilled){
+                FileCopyUtils.copy(node.getContent(), response.getOutputStream());
+                return;
+            }
+            // validate range header
+            String rangeHeader = request.getHeader("range"); // ex: (bytes=200-1000)
+            int firstBytePos = 0;
+            int secondBytePos = 0;
+            if(rangeHeader!=null){
+                rangeHeader = rangeHeader.substring("bytes=".length());
+                String[] stringRanges = rangeHeader.split(",");
+                String firstRange = stringRanges.length>0 ? stringRanges[0] : null;
+                if(firstRange!=null){
+                    String[] twoPartsRange = firstRange.split("-");
+                    firstBytePos = twoPartsRange.length>0 && !twoPartsRange[0].isEmpty() ? Integer.parseInt( twoPartsRange[0]) : -1;
+                    secondBytePos = twoPartsRange.length>1 && !twoPartsRange[1].isEmpty() ? Integer.parseInt( twoPartsRange[1]) : -1;
+                    if(firstBytePos!=-1){
+                       if(firstBytePos>resourceLength){
+                           response.setStatus(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE.value());
+                           return; // TODO to see later
+                       }
+                    }
+                    if(secondBytePos!=-1){
+                       if(secondBytePos>=resourceLength || secondBytePos <= firstBytePos){
+                           response.setStatus(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE.value());
+                           return; // TODO to see later
+                       }
+                    }
+                    if(firstBytePos==-1 && secondBytePos==-1){
+                        response.setStatus(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE.value());
+                        return; // TODO to see later
+                    }
+                    int firstOne = firstBytePos, secondOne= secondBytePos;
+                    firstBytePos = firstOne!=-1 ? firstBytePos : (int)(resourceLength-secondOne);
+                    secondBytePos =  secondOne!=-1 && firstOne!=-1 ? secondOne : (int)(resourceLength);
+                }
+            }
+            boolean isRangeFullFilled = rangeHeader!=null && firstBytePos<secondBytePos;
+            try(OutputStream outputStream = response.getOutputStream();
+                InputStream inputStream = node.getContent()){
+                if(isRangeFullFilled){
+                    response.setStatus(HttpStatus.PARTIAL_CONTENT.value());
+                    String contentRange = firstBytePos+"-"+secondBytePos;
+                    response.setHeader("Content-Range","bytes "+contentRange+"/"+resourceLength);
+                    long contentLength = secondBytePos-firstBytePos;
+                    response.setHeader("Content-Length", String.valueOf(contentLength));
+                    IOUtils.copyLarge(inputStream, outputStream, firstBytePos, contentLength);
+                }else{
+                    IOUtils.copyLarge(inputStream, outputStream);
+                }
+            }catch (Exception e) {
+                logger.log(SEVERE, String.format("Error while streaming file content: %s, Error: %s %n", node.getName(), e.getMessage()));
+                throw new CustomException(ERROR_WHILE_STREAMING_FILE_CONTENT, node.getName());
+            }
+        }catch (Exception e){
+            throw new CustomException(e,UNKNOWN_EXCEPTION, e.getMessage());
+        }
+    }
+
+    public NodeWebRequest prepareUpdateWithChunks(Node node,
+                                                  NodeWebRequest nodeWebRequest,
+                                                  String chunk,
+                                                  HttpServletRequest request,
+                                                  HttpServletResponse response) throws CustomException{
+        try{
+            nodeWebRequest.setContentType(Optional
+                    .ofNullable(request.getHeader("Content-Type"))
+                    .orElse(nodeWebRequest.getContentType()));
+            Base64.Decoder decoder = Base64.getDecoder();
+            byte[] decodedBytes = decoder.decode(chunk.trim());
+            byte[] savedBytes = IOUtils.toByteArray(node.getContent());
+            long savedContentLength = node.getFileSize();
+            int startPos = request.getIntHeader("x-chunk-start-pos");
+            if(savedBytes!=null){
+                if(startPos > savedContentLength || startPos < 0)
+                    throw new CustomException(UNKNOWN_EXCEPTION, String.format("chunk start position invalid, file size is %s", savedContentLength));
+                long bufferSize = startPos+ decodedBytes.length;
+                try (
+                        ByteArrayInputStream savedIn = new ByteArrayInputStream(savedBytes);
+                        ByteArrayOutputStream out = new ByteArrayOutputStream((int)bufferSize);
+                ){
+                    IOUtils.copyLarge(savedIn, out, 0, startPos);
+                    out.write(decodedBytes,0,decodedBytes.length);
+                    nodeWebRequest.setContent(out.toByteArray());
+                }
+            }
+        }
+        catch(IOException ex){
+            ex.printStackTrace();
+            return nodeWebRequest;
+        }
+        return nodeWebRequest;
+    }
+
     public static IUser currentUser(){
         CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return userDetails.getUser();

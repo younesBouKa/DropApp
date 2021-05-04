@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,11 +29,8 @@ public class Node implements Serializable {
     String parentId;
     List<String> path;
 
-    String originalName;
-    String fileId;
-    long fileSize;
-    String contentType;
-    String extension;
+    FileVersion currentFileVersion = new FileVersion();
+    List<FileVersion> versions = new ArrayList<>();
 
     String label;
     String description;
@@ -47,13 +45,14 @@ public class Node implements Serializable {
     @Transient
     List<Node> children;
     @Transient
-    InputStream content; // TODO to remove later
+    InputStream content;
 
     public Node(){}
 
     public Node(String name, String ownerId){
         this.name = name;
         this.ownerId = ownerId;
+        this.currentFileVersion.setUserId(ownerId);
     }
 
     public Node(String name, String ownerId, String parentId){
@@ -76,6 +75,7 @@ public class Node implements Serializable {
 
     public void setId(String id) {
         this.id = id;
+        currentFileVersion.setUserId(id);
     }
 
     public String getName() {
@@ -95,27 +95,15 @@ public class Node implements Serializable {
     }
 
     public String getFileId() {
-        return fileId;
-    }
-
-    public void setFileId(String fileId) {
-        this.fileId = fileId;
+        return currentFileVersion.getFileId();
     }
 
     public long getFileSize() {
-        return fileSize;
-    }
-
-    public void setFileSize(long fileSize) {
-        this.fileSize = fileSize;
+        return currentFileVersion.getFileSize();
     }
 
     public String getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
+        return currentFileVersion.getContentType();
     }
 
     public List<String> getPath() {
@@ -207,18 +195,26 @@ public class Node implements Serializable {
     }
 
     public String getOriginalName() {
-        return originalName;
-    }
-
-    public void setOriginalName(String originalName) {
-        this.originalName = originalName;
+        return currentFileVersion.getOriginalName();
     }
 
     public String getExtension() {
-        return extension;
+        return currentFileVersion.getExtension();
     }
 
-    public void setExtension(String extension) {
-        this.extension = extension;
+    public FileVersion getCurrentFileVersion() {
+        return currentFileVersion;
+    }
+
+    public void setCurrentFileVersion(FileVersion currentFileVersion) {
+        this.currentFileVersion = currentFileVersion;
+    }
+
+    public List<FileVersion> getVersions() {
+        return versions;
+    }
+
+    public void setVersions(List<FileVersion> versions) {
+        this.versions = versions;
     }
 }

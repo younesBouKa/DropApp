@@ -26,18 +26,4 @@ public class UserConfiguration {
         return new CustomUserDetailsService();
     }
 
-    @Bean
-    CommandLineRunner init(IRoleRepo roleRepository) {
-        return args -> {
-            List<String> rolesName = Arrays.asList("ADMIN", "USER", "MODERATOR");
-            rolesName.forEach(name ->{
-                Role bdRole = roleRepository.findByName(name);
-                if (bdRole == null) {
-                    Role role = new Role(name);
-                    roleRepository.save(role);
-                }
-            });
-        };
-
-    }
 }

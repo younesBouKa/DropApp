@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import server.data.FileVersion;
 import server.data.IUser;
 import server.data.NodeType;
 import server.exceptions.CustomException;
@@ -15,13 +16,12 @@ import server.models.NodeWebRequest;
 import server.models.ZipRequest;
 import server.repositories.IFileRepo;
 import server.repositories.INodeRepo;
+import server.tools.tools;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -82,16 +82,23 @@ public class NodeService implements INodeService{
         File zipFile = zipNodesByIds(user, zipRequest.getNodesId(), zipRequest.getName());
         // add zip file to zip request in order to make some operation for us
         // like file size and contentType, ...
-        zipRequest.setFile(zipFile);
+        zipRequest.updateWithFile(zipFile);
         // creating node
         Node zipNode = new Node(zipRequest.getName(), user.getId(), parentId, path);
         zipNode.setType(NodeType.FILE);
-        zipNode.setOriginalName(zipFile.getName());
-        zipNode.setExtension(zipRequest.getExtension());
         zipNode.getFields().putAll(zipRequest.getFields());
         zipNode = fixNameConflict(zipNode);
         // saving zip file content to database
-        saveFile(zipNode, zipRequest.getFileContent(), zipRequest.getContentType(), zipRequest.getFileSize());
+        String fileId = saveFile(zipNode, zipRequest.getContent());
+        if(fileId!=null){
+            // adding file version
+            String contentHash = tools.hash(zipRequest.getContent());
+            FileVersion fileVersion = new FileVersion(fileId, user.getId(),
+                    zipRequest.getOriginalName(), zipRequest.getFileSize(),
+                    zipRequest.getContentType(), zipRequest.getExtension(),
+                    zipRequest.getFields(), contentHash).hashVersion();
+            zipNode.setCurrentFileVersion(fileVersion);
+        }
        // saving node
         zipNode = nodeRepo.insert(zipNode);
         return zipNode;
@@ -111,10 +118,20 @@ public class NodeService implements INodeService{
         nodeWebRequest.setPath(path);
         Node node = NodeWebRequest.toNode(nodeWebRequest);
         node.setOwnerId(user.getId());
-        saveFile(node, nodeWebRequest.getFileContent(), nodeWebRequest.getContentType(), nodeWebRequest.getFileSize());
+        // fix name
+        node = fixNameConflict(node);
+        // save file
+        String fileId = saveFile(node, nodeWebRequest.getFileContent());
+        // adding file version
+        if(fileId!=null){
+            String contentHash = tools.hash(nodeWebRequest.getContent());
+            FileVersion fileVersion = new FileVersion(fileId, user.getId(),
+                    nodeWebRequest.getOriginalName(), nodeWebRequest.getFileSize(),
+                    nodeWebRequest.getContentType(), nodeWebRequest.getExtension(),
+                    nodeWebRequest.getFields(), contentHash).hashVersion();
+            node.setCurrentFileVersion(fileVersion);
+        }
         try {
-            // fix name
-            node = fixNameConflict(node);
             Node createdNode = nodeRepo.insert(node);
             return addParent(createdNode); // just more details
         }catch (org.springframework.dao.DuplicateKeyException e){
@@ -139,7 +156,31 @@ public class NodeService implements INodeService{
         path.add(nodeWebRequest.getName());
         nodeWebRequest.setPath(path);
         NodeWebRequest.updateNodeWith(node, nodeWebRequest);
-        saveFile(node, nodeWebRequest.getFileContent(), nodeWebRequest.getContentType(), nodeWebRequest.getFileSize());
+        // save file
+        String fileId = saveFile(node, nodeWebRequest.getFileContent());
+        // adding file version
+        if(fileId!=null){
+            FileVersion currentVersion = node.getCurrentFileVersion();
+            String contentHash = tools.hash(nodeWebRequest.getContent());
+            FileVersion fileVersion = new FileVersion(
+                    fileId,
+                    user.getId(),
+                    Optional.ofNullable(nodeWebRequest.getOriginalName()).orElse(currentVersion.getOriginalName()),
+                    Optional.of(nodeWebRequest.getFileSize()).orElse(currentVersion.getFileSize()),
+                    Optional.ofNullable(nodeWebRequest.getContentType()).orElse(currentVersion.getContentType()),
+                    Optional.ofNullable(nodeWebRequest.getExtension()).orElse(currentVersion.getExtension()),
+                    Optional.ofNullable(nodeWebRequest.getFields()).orElse(currentVersion.getFields()),
+                    contentHash
+            ).hashVersion();
+            // set current version in history
+            if(
+                    currentVersion.getFileId()!=null // file is not null
+                    && !currentVersion.getVersionHash().equals(fileVersion.getVersionHash()) // and was updated
+            )
+                node.getVersions().add(node.getCurrentFileVersion());
+            // set current version
+            node.setCurrentFileVersion(fileVersion.hashVersion());
+        }
         try {
             Node createdNode = nodeRepo.save(node);
             return addParent(createdNode);
@@ -171,8 +212,28 @@ public class NodeService implements INodeService{
         Node node = getNodeFromPath(user, nodeFtpRequest.getPath(), true);
         if(node != null){
             NodeFtpRequest.updateNodeWith(node, nodeFtpRequest);
-            saveFile(node, nodeFtpRequest.getFileContent(), nodeFtpRequest.getContentType(), nodeFtpRequest.getFileSize());
-            node = fixNameConflict(node);
+            //node = fixNameConflict(node);
+            // save file
+            String fileId = saveFile(node, nodeFtpRequest.getContent());
+            // build Version
+            if(fileId!=null){
+                FileVersion currentVersion = node.getCurrentFileVersion();
+                String contentHash = tools.hash(nodeFtpRequest.getContent());
+                FileVersion fileVersion = new FileVersion(
+                        fileId,
+                        user.getId(),
+                        Optional.of(nodeFtpRequest.getOriginalName()).orElse(currentVersion.getOriginalName()),
+                        Optional.of(nodeFtpRequest.getFileSize()).orElse(currentVersion.getFileSize()),
+                        Optional.of(nodeFtpRequest.getContentType()).orElse(currentVersion.getContentType()),
+                        Optional.of(nodeFtpRequest.getExtension()).orElse(currentVersion.getExtension()),
+                        Optional.of(nodeFtpRequest.getFields()).orElse(currentVersion.getFields()),
+                        contentHash).hashVersion();
+                // set current version in history
+                if(currentVersion.getFileId()!=null && !currentVersion.getVersionHash().equals(fileVersion.getVersionHash()))
+                    node.getVersions().add(node.getCurrentFileVersion());
+                // set current version
+                node.setCurrentFileVersion(fileVersion);
+            }
             node = nodeRepo.save(node);
             logger.log(Level.INFO, node.toString());
             return node;
@@ -196,7 +257,7 @@ public class NodeService implements INodeService{
         return 0;
     }
 
-    /********** compressing *****************/
+    /********** Tools *******************/
     public File zipNodesByIds(IUser user, List<String> nodesId, String zipName) throws CustomException {
         if(nodesId==null)
             throw new CustomException(NULL_PARAMS, "nodesId");
@@ -277,16 +338,29 @@ public class NodeService implements INodeService{
         }
     }
 
-    /********** Tools *******************/
-    public Node saveFile(Node node, InputStream inputStream, String contentType, long fileSize) throws CustomException {
-        if(inputStream!=null && fileSize>0){
+    public String saveFile(Node node, InputStream inputStream) throws CustomException {
+        if(inputStream!=null){
             node.setType(NodeType.FILE);
-            node.setContentType(contentType);
-            node.setFileSize(fileSize);
-            ObjectId fileId = fileRepo.saveFile(inputStream, node);
-            node.setFileId(fileId.toString());
+            try (InputStream inputStream1 = inputStream){
+                ObjectId fileId = fileRepo.saveFile(inputStream1, node);
+                return fileId.toHexString();
+            }catch (Exception e){
+                throw new CustomException(e, ERROR_WHILE_SAVING_FILE, node.getName());
+            }
         }
-        return node;
+        return null;
+    }
+
+    public String saveFile(Node node, byte[] bytes) throws CustomException {
+        if(bytes!=null && bytes.length>0){
+            node.setType(NodeType.FILE);
+            try (InputStream in = new ByteArrayInputStream(bytes)){
+                return saveFile(node, in);
+            }catch (Exception e){
+                throw new CustomException(e, ERROR_WHILE_SAVING_FILE, node.getName());
+            }
+        }
+        return null;
     }
 
     public Node getNodeFromPath(IUser user, List<String> pathParts, boolean allowInsert){
@@ -354,20 +428,18 @@ public class NodeService implements INodeService{
         return node;
     }
 
-    public boolean existWithSameKey(Node node){
-        return getByNameAndOwnerIdAndParentId(node.getName(), node.getOwnerId(), node.getParentId())!=null;
+    public Node getWithSameKey(Node node){
+        return getByNameAndOwnerIdAndParentId(node.getName(), node.getOwnerId(), node.getParentId());
     }
 
     public Node fixNameConflict(Node node){
-        boolean existsWithName = existWithSameKey(node);
-        if(existsWithName){
+        Node nodeWithSameKey = getWithSameKey(node);
+        if(nodeWithSameKey!=null){
             String oldName = node.getName();
-            String generatedName = oldName+"_"+
-                    new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss-SSS")
-                            .format(Date.from(Instant.now()));
+            String generatedName = oldName+"_"+System.currentTimeMillis();
             if(oldName.contains(".")){
                 int index = oldName.lastIndexOf(".");
-                generatedName = oldName.substring(0,index)+"_"+Instant.now()+oldName.substring(index);
+                generatedName = oldName.substring(0,index)+"_"+System.currentTimeMillis()+oldName.substring(index);
             }
             node.setName(generatedName);
         }

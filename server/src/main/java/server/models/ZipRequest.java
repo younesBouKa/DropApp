@@ -2,8 +2,8 @@ package server.models;
 
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.springframework.stereotype.Component;
-import server.exceptions.CustomException;
 
 import java.io.*;
 import java.net.URLConnection;
@@ -18,43 +18,53 @@ public class ZipRequest implements Serializable {
     private String name;
     private String parentId;
     private List<String> nodesId;
+    private byte[] content;
+    private String originalName;
+    private long fileSize;
+    private String extension;
+    private String contentType;
     private Map<String, Object> fields = new HashMap<>();
-    private File file;
 
     public ZipRequest(){
         this.fields.put("from","WEB");
     }
 
-    public InputStream getFileContent() throws CustomException {
-        try {
-            return new FileInputStream(getFile());
+    public void updateWithFile(File file){
+        if(file==null || !file.canRead())
+            return;
+        try{
+            setFileSize(Files.size(file.toPath()));
+            try (InputStream in = new FileInputStream(file)){
+                setContent(IOUtils.toByteArray(in));
+            }
+            setOriginalName(file.getName());
         }catch (IOException e){
-            return null;
+            e.printStackTrace();
         }
     }
 
     public String getContentType(){
         try {
-            return URLConnection.getFileNameMap().getContentTypeFor(getFile().getName());
+            return contentType!=null? contentType : URLConnection.getFileNameMap().getContentTypeFor(getOriginalName());
         }catch (Exception e){
             return "";
         }
     }
 
     public String getExtension(){
-        return getFile()!=null ? FilenameUtils.getExtension(getFile().getName()) : "";
+        return extension!=null? extension : FilenameUtils.getExtension(getOriginalName());
     }
 
     public long getFileSize(){
-        try {
-            return Files.size(getFile().toPath());
-        }catch (Exception e){
-            return 0;
-        }
+        return content!= null ? content.length :  fileSize;
     }
 
     public String getName() {
         return name;
+    }
+
+    public String getOriginalName() {
+        return originalName!=null ? originalName : name;
     }
 
     public void setName(String name) {
@@ -77,12 +87,12 @@ public class ZipRequest implements Serializable {
         this.fields = fields;
     }
 
-    public File getFile() {
-        return file;
+    public byte[] getContent() {
+        return content;
     }
 
-    public void setFile(File file) {
-        this.file = file;
+    public void setContent(byte[] content) {
+        this.content = content;
     }
 
     public List<String> getNodesId() {
@@ -91,5 +101,21 @@ public class ZipRequest implements Serializable {
 
     public void setNodesId(List<String> nodesId) {
         this.nodesId = nodesId;
+    }
+
+    public void setOriginalName(String originalName) {
+        this.originalName = originalName;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public void setExtension(String extension) {
+        this.extension = extension;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 }

@@ -1,12 +1,14 @@
 package server.models;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.ftpserver.ftplet.FtpFile;
 import org.springframework.stereotype.Component;
 import server.data.IUser;
 import server.data.Node;
 import server.data.NodeType;
 import server.exceptions.CustomException;
+import server.exceptions.Message;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,39 +19,47 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static server.exceptions.Message.ERROR_WHILE_READING_FILE_CONTENT;
-
 @Component
 public class NodeFtpRequest implements Serializable {
 
     private String name;
-    private IUser user;
-    private FtpFile file;
-    private NodeType type;
     private String ownerId;
-    private long fileSize;
+    private IUser user;
     private List<String> path;
+    private long fileSize;
     private String contentType;
+    private String originalName;
+    private NodeType type;
     private Map<String, Object> fields = new HashMap<>();
+    private byte[] content;
 
     public NodeFtpRequest(){
         this.fields.put("from","FTP");
-        this.type = NodeType.FILE;
     }
 
     public NodeFtpRequest(IUser user, FtpFile file, List<String> path){
         this();
-        // owner infos
         this.setUser(user);
         this.setOwnerId(user.getId());
-        // file infos
-        this.setType(file.isFile() ? NodeType.FILE : NodeType.FOLDER);
-        String contentType = URLConnection.getFileNameMap().getContentTypeFor(file.getName());
-        this.setContentType(contentType);
         this.setPath(path);
-        this.setName(file.getName());
-        this.setFile(file);
-        this.setFileSize(file.getSize());
+        // add file infos
+        this.updateWithFile(file);
+    }
+
+    public void updateWithFile(FtpFile file){
+        try{
+            if(file==null || !file.isReadable())
+                return;
+            setFileSize(file.getSize());
+            try(InputStream in = file.createInputStream(0)){
+                setContent(IOUtils.toByteArray(in));
+            }
+            setOriginalName(file.getName());
+            setName(file.getName());
+            setType(file.isFile()? NodeType.FILE: NodeType.FOLDER);
+        }catch (IOException e){
+            e.printStackTrace();
+        }
     }
 
     public static Node toNode(NodeFtpRequest nodeFtpRequest) {
@@ -65,27 +75,23 @@ public class NodeFtpRequest implements Serializable {
             }
         }
         node.setName(nodeFtpRequest.getName());
-        node.setExtension(FilenameUtils.getExtension(nodeFtpRequest.getOriginalName()));
-        node.setOriginalName(nodeFtpRequest.getOriginalName());
         node.setOwnerId(nodeFtpRequest.getUser().getId());
         node.setPath(nodeFtpRequest.getPath());
         node.setType(nodeFtpRequest.getType());
-        node.setContentType(nodeFtpRequest.getContentType());
-        node.setFileSize(nodeFtpRequest.getFileSize());
         node.setModificationDate(Instant.now());
         return node;
     }
 
-    public InputStream getFileContent() throws CustomException {
-        try {
-            return getFile().createInputStream(0);
-        }catch (IOException e){
-            throw new CustomException(e, ERROR_WHILE_READING_FILE_CONTENT, getName());
-        }
+    public byte[] getContent() {
+        return content;
     }
 
     public String getOriginalName(){
-        return getFile()!=null ? getFile().getName() : getName();
+        return originalName!=null ? originalName : name;
+    }
+
+    public String getExtension(){
+        return FilenameUtils.getExtension(getOriginalName());
     }
 
     public String getName() {
@@ -97,19 +103,11 @@ public class NodeFtpRequest implements Serializable {
     }
 
     public NodeType getType() {
-        return type;
-    }
-
-    public void setType(NodeType type) {
-        this.type = type;
+        return type!=null ? type : NodeType.FOLDER;
     }
 
     public String getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
+        return contentType!=null ? contentType: URLConnection.getFileNameMap().getContentTypeFor(getOriginalName());
     }
 
     public String getOwnerId() {
@@ -136,20 +134,8 @@ public class NodeFtpRequest implements Serializable {
         this.path = path;
     }
 
-    public FtpFile getFile() {
-        return file;
-    }
-
-    public void setFile(FtpFile file) {
-        this.file = file;
-    }
-
     public long getFileSize() {
-        return fileSize;
-    }
-
-    public void setFileSize(long fileSize) {
-        this.fileSize = fileSize;
+        return content!=null ? content.length : fileSize;
     }
 
     public IUser getUser() {
@@ -158,5 +144,25 @@ public class NodeFtpRequest implements Serializable {
 
     public void setUser(IUser user) {
         this.user = user;
+    }
+
+    public void setContent(byte[] content) {
+        this.content = content;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public void setOriginalName(String originalName) {
+        this.originalName = originalName;
+    }
+
+    public void setType(NodeType type) {
+        this.type = type;
     }
 }

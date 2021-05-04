@@ -57,6 +57,7 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
         else{ // if exception was not wrapped
             messageCode = new MessageCode("Technical error!", -1); // error in body will be technical error
             output.setDevMessage(ex.toString()); // put exception in devMessage
+            ex.printStackTrace();
         }
         output.setUserMessage(messageCode.getMessage()); // formatted message
         output.setData(messageCode); // error in body

@@ -1,35 +1,68 @@
 package server.models;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import server.data.Node;
 import server.data.NodeType;
 import server.exceptions.CustomException;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Serializable;
+import java.io.*;
+import java.nio.file.Files;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static server.exceptions.Message.ERROR_WHILE_READING_FILE_CONTENT;
 
 @Component
 public class NodeWebRequest implements Serializable {
 
     private String name;
     private NodeType type;
+    private String description;
+    private String label;
     private List<String> path;
     private String parentId;
+    private byte[] content;
+    private long fileSize;
+    private String contentType;
+    private String originalName;
     private Map<String, Object> fields = new HashMap<>();
-    private MultipartFile file;
 
     public NodeWebRequest(){
         this.fields.put("from","WEB");
         this.type = NodeType.FILE;
+    }
+
+    public void updateWithFile(MultipartFile file){
+        if(file==null)
+            return;
+        try{
+            setFileSize(file.getSize());
+            try (InputStream in = file.getInputStream()){
+                setContent(IOUtils.toByteArray(in));
+            }
+            setOriginalName(file.getOriginalFilename());
+            setContentType(file.getContentType());
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+
+    public void updateWithFile(File file){
+        if(file==null || !file.canRead()) // TODO add some details here
+            return;
+        try{
+            setFileSize(Files.size(file.toPath()));
+            try (InputStream in = new FileInputStream(file)){
+                setContent(IOUtils.toByteArray(in));
+            }
+            setOriginalName(file.getName());
+        }catch (IOException e){
+            e.printStackTrace();
+        }
     }
 
     public static Node toNode(NodeWebRequest nodeRequest) {
@@ -45,36 +78,32 @@ public class NodeWebRequest implements Serializable {
             }
         }
         node.getFields().put("from","WEB");
-        node.setExtension(FilenameUtils.getExtension(nodeRequest.getOriginalName()));
-        node.setContentType(nodeRequest.getContentType());
-        node.setFileSize(nodeRequest.getFileSize());
-        node.setOriginalName(nodeRequest.getOriginalName());
-        node.setName(nodeRequest.getName());
-        node.setParentId(nodeRequest.getParentId());
-        node.setPath(nodeRequest.getPath());
-        node.setType(nodeRequest.getType());
+        node.setName(nodeRequest.getName()!=null ? nodeRequest.getName() : node.getName());
+        node.setParentId(nodeRequest.getParentId()!=null ? nodeRequest.getParentId() : node.getParentId());
+        node.setPath(nodeRequest.getPath()!=null ? nodeRequest.getPath() : node.getPath());
+        node.setType(nodeRequest.getType()!=null ? nodeRequest.getType() : node.getType());
         node.setModificationDate(Instant.now());
         return node;
     }
 
-    public InputStream getFileContent() throws CustomException {
-        try {
-            return getFile().getInputStream();
-        }catch (IOException e){
-            throw new CustomException(e, ERROR_WHILE_READING_FILE_CONTENT, getName());
-        }
+    public byte[] getFileContent() throws CustomException {
+        return content;
     }
 
     public String getOriginalName(){
-        return getFile()!=null ? getFile().getOriginalFilename() : name;
+        return originalName!=null ? originalName : name;
     }
 
     public String getContentType(){
-        return getFile()!=null ? getFile().getContentType() : "";
+        return contentType;
+    }
+
+    public String getExtension(){
+        return FilenameUtils.getExtension(getOriginalName());
     }
 
     public long getFileSize(){
-        return getFile()!=null ? getFile().getSize() : 0L;
+        return content!=null  ? content.length : fileSize;
     }
 
     public String getName() {
@@ -117,21 +146,39 @@ public class NodeWebRequest implements Serializable {
         this.fields = fields;
     }
 
-    public MultipartFile getFile() {
-        return file;
+    public byte[] getContent() {
+        return content;
     }
 
-    public void setFile(MultipartFile file) {
-        this.file = file;
+    public String getDescription() {
+        return description;
     }
 
-    public static String getFormat(){
-        return "{" +
-                "name: String, " +
-                "type: ['FOLDER' | 'FILE']," +
-                "parentId: String, " +
-                "fields : Map<String,Object>, " +
-                "file: MultipartFile" +
-                "}";
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getLabel() {
+        return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
+    }
+
+    public void setContent(byte[] content) {
+        this.content = content;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public void setOriginalName(String originalName) {
+        this.originalName = originalName;
     }
 }

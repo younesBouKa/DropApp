@@ -1,5 +1,6 @@
 package server.ftp;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.ftpserver.ftplet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import server.models.NodeFtpRequest;
 import server.services.INodeService;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
