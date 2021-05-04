@@ -226,9 +226,6 @@ public class NodeController {
                                                   HttpServletRequest request,
                                                   HttpServletResponse response) throws CustomException{
         try{
-            nodeWebRequest.setContentType(Optional
-                    .ofNullable(request.getHeader("Content-Type"))
-                    .orElse(nodeWebRequest.getContentType()));
             Base64.Decoder decoder = Base64.getDecoder();
             byte[] decodedBytes = decoder.decode(chunk.trim());
             byte[] savedBytes = IOUtils.toByteArray(node.getContent());
@@ -237,13 +234,16 @@ public class NodeController {
             if(savedBytes!=null){
                 if(startPos > savedContentLength || startPos < 0)
                     throw new CustomException(UNKNOWN_EXCEPTION, String.format("chunk start position invalid, file size is %s", savedContentLength));
-                long bufferSize = startPos+ decodedBytes.length;
+                long endPos = startPos+decodedBytes.length;
+                long bufferSize = Math.max(endPos, savedContentLength);
                 try (
                         ByteArrayInputStream savedIn = new ByteArrayInputStream(savedBytes);
                         ByteArrayOutputStream out = new ByteArrayOutputStream((int)bufferSize);
                 ){
                     IOUtils.copyLarge(savedIn, out, 0, startPos);
                     out.write(decodedBytes,0,decodedBytes.length);
+                    if(endPos< savedContentLength)
+                        out.write(savedBytes, (int)endPos, (int)(savedContentLength-endPos));
                     nodeWebRequest.setContent(out.toByteArray());
                 }
             }

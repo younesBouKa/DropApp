@@ -37,6 +37,7 @@ import static server.tools.MimeTypesMap.getMimeType;
 @Service
 public class NodeService implements INodeService{
     private final Logger logger = Logger.getLogger(NodeService.class.getName());
+    private final int MAX_HISTORY_SIZE = 10;
 
     @Autowired
     private INodeRepo nodeRepo;
@@ -165,19 +166,22 @@ public class NodeService implements INodeService{
             FileVersion fileVersion = new FileVersion(
                     fileId,
                     user.getId(),
-                    Optional.ofNullable(nodeWebRequest.getOriginalName()).orElse(currentVersion.getOriginalName()),
+                    getValueOr(nodeWebRequest.getOriginalName(), currentVersion.getOriginalName()),
                     Optional.of(nodeWebRequest.getFileSize()).orElse(currentVersion.getFileSize()),
-                    Optional.ofNullable(nodeWebRequest.getContentType()).orElse(currentVersion.getContentType()),
-                    Optional.ofNullable(nodeWebRequest.getExtension()).orElse(currentVersion.getExtension()),
-                    Optional.ofNullable(nodeWebRequest.getFields()).orElse(currentVersion.getFields()),
+                    getValueOr(nodeWebRequest.getContentType(), currentVersion.getContentType()),
+                    getValueOr(nodeWebRequest.getExtension(), currentVersion.getExtension()),
+                    getValueOr(nodeWebRequest.getFields(), currentVersion.getFields()),
                     contentHash
             ).hashVersion();
             // set current version in history
             if(
                     currentVersion.getFileId()!=null // file is not null
                     && !currentVersion.getVersionHash().equals(fileVersion.getVersionHash()) // and was updated
-            )
+            ){
                 node.getVersions().add(node.getCurrentFileVersion());
+                if(node.getVersions().size()>MAX_HISTORY_SIZE)
+                    node.getVersions().remove(0);
+            }
             // set current version
             node.setCurrentFileVersion(fileVersion.hashVersion());
         }
@@ -222,15 +226,18 @@ public class NodeService implements INodeService{
                 FileVersion fileVersion = new FileVersion(
                         fileId,
                         user.getId(),
-                        Optional.of(nodeFtpRequest.getOriginalName()).orElse(currentVersion.getOriginalName()),
+                        getValueOr(nodeFtpRequest.getOriginalName(), currentVersion.getOriginalName()),
                         Optional.of(nodeFtpRequest.getFileSize()).orElse(currentVersion.getFileSize()),
-                        Optional.of(nodeFtpRequest.getContentType()).orElse(currentVersion.getContentType()),
-                        Optional.of(nodeFtpRequest.getExtension()).orElse(currentVersion.getExtension()),
-                        Optional.of(nodeFtpRequest.getFields()).orElse(currentVersion.getFields()),
+                        getValueOr(nodeFtpRequest.getContentType(), currentVersion.getContentType()),
+                        getValueOr(nodeFtpRequest.getExtension(), currentVersion.getExtension()),
+                        getValueOr(nodeFtpRequest.getFields(), currentVersion.getFields()),
                         contentHash).hashVersion();
                 // set current version in history
-                if(currentVersion.getFileId()!=null && !currentVersion.getVersionHash().equals(fileVersion.getVersionHash()))
+                if(currentVersion.getFileId()!=null && !currentVersion.getVersionHash().equals(fileVersion.getVersionHash())){
                     node.getVersions().add(node.getCurrentFileVersion());
+                    if(node.getVersions().size()>MAX_HISTORY_SIZE)
+                        node.getVersions().remove(0);
+                }
                 // set current version
                 node.setCurrentFileVersion(fileVersion);
             }
@@ -444,6 +451,14 @@ public class NodeService implements INodeService{
             node.setName(generatedName);
         }
         return node;
+    }
+
+    public String getValueOr(String object, String defaultObj){
+        return object==null || "".equals(object) ? defaultObj : object;
+    }
+
+    public Map getValueOr(Map object, Map defaultObj){
+        return object==null || object.isEmpty() ? defaultObj : object;
     }
 
 }
