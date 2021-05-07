@@ -13,9 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import server.exceptions.CustomException;
-import server.user.controllers.TestController;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
@@ -57,8 +55,8 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
         else{ // if exception was not wrapped
             messageCode = new MessageCode("Technical error!", -1); // error in body will be technical error
             output.setDevMessage(ex.toString()); // put exception in devMessage
-            ex.printStackTrace();
         }
+        ex.printStackTrace();
         output.setUserMessage(messageCode.getMessage()); // formatted message
         output.setData(messageCode); // error in body
         output.setHttpCode(200); // always send response

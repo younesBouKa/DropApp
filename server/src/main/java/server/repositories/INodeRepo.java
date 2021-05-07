@@ -10,15 +10,15 @@ import java.util.Optional;
 
 public interface INodeRepo extends MongoRepository<Node, String> {
 
-    Optional<Node> findByIdAndOwnerId(String id, String ownerId);
-    List<Node> findAllByOwnerIdAndParentIdAndNameContains(String ownerId, String parentId, String name, PageRequest pageRequest);
-    List<Node> findByOwnerIdAndParentId(String ownerId, String parentId);
-    @Query("{ 'name': ?0 , 'ownerId' : ?1, 'parentId': ?2 }")
-    Node findByNameAndOwnerIdAndParentIdNotNull(String name, String ownerId, String parentId);
-    @Query("{'ownerId' : ?0, 'parentId': {$exists: false} }")
-    List<Node> findByOwnerIdAndParentIdNull(String ownerId);
-    @Query("{ 'name': ?0 , 'ownerId' : ?1, 'parentId': {$exists: false} }")
-    Node findByNameAndOwnerIdAndParentIdNull(String name, String ownerId);
+    Optional<Node> findById(String id);
+    List<Node> findAllByParentIdAndNameContains(String parentId, String name, PageRequest pageRequest);
+    List<Node> findByParentId(String parentId);
+    @Query("{ 'name': ?0 , 'parentId': ?1 }")
+    Node findByNameAndParentIdNotNull(String name, String parentId);
+    @Query("{'parentId': {$exists: false} }")
+    List<Node> findByParentIdNull();
+    @Query("{ 'name': ?0 , 'parentId': {$exists: false} }")
+    Node findByNameAndParentIdNull(String name);
 
     int countById(String id);
     void deleteById(String id);

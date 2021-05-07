@@ -1,7 +1,6 @@
 package server.services;
 
 import org.apache.commons.io.FilenameUtils;
-import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -14,9 +13,9 @@ import server.data.Node;
 import server.models.NodeFtpRequest;
 import server.models.NodeWebRequest;
 import server.models.ZipRequest;
-import server.repositories.IFileRepo;
-import server.repositories.INodeRepo;
-import server.tools.tools;
+import server.providers.IFileProvider;
+import server.providers.INodeProvider;
+import server.tools.HashTool;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -40,31 +39,38 @@ public class NodeService implements INodeService{
     private final int MAX_HISTORY_SIZE = 10;
 
     @Autowired
-    private INodeRepo nodeRepo;
+    private INodeProvider nodeProvider;
     @Autowired
-    private IFileRepo fileRepo;
+    private IFileProvider fileProvider;
 
     /********** for nodes from web *******************/
     @Override
-    public List<Node> getNodes(IUser user, String parentId, int page, int size, String sortField, String direction, List<String> status, String search) {
+    public List<Node> getNodes(IUser user, String parentId, int page, int size, String sortField, String direction, List<String> status, String search) throws CustomException {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.Direction.valueOf(direction), sortField);
-        return nodeRepo.findAllByOwnerIdAndParentIdAndNameContains(user.getId(), parentId, search, pageRequest)
-                .stream()
-                .map(this::addParent) // adding parents
-                .collect(Collectors.toList());
+        List<Node> nodeList =  nodeProvider.getNodesByUserAndParentIdAndName(user.getId(), parentId, search, pageRequest);
+        for (Node node : nodeList){
+            addParent(node, user);// adding parents
+        }
+        return nodeList;
     }
 
     @Override
     public Node getNodeById(IUser user, String nodeId) throws CustomException {
-        Node node = nodeRepo.findByIdAndOwnerId(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId));
-        return addChildren(addParent(node));
+        // canGetResource(nodeId, user.getId())
+        Node node = nodeProvider.getNodeById(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId));
+        return addChildren(addParent(node, user), user);
     }
 
     @Override
-    public Node getNodeContent(IUser user, String nodeId) throws CustomException {
-        Node node = nodeRepo.findByIdAndOwnerId(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId));
-        node = addContentWithFail(node);
-        return addParent(node);
+    public Node getNodeWithContent(IUser user, String nodeId) throws CustomException {
+        Node node = nodeProvider.getNodeById(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId));
+        return addContentWithFail(node);
+    }
+
+    @Override
+    public Node getNodeWithContent(IUser user, String nodeId, int startPos, int endPos) throws CustomException {
+        Node node = nodeProvider.getNodeById(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId));
+        return addContentWithFail(node, startPos, endPos);
     }
 
     @Override
@@ -74,7 +80,7 @@ public class NodeService implements INodeService{
         Node parentNode = null;
         List<String> path = new ArrayList<>();
         if(parentId != null){
-            parentNode = nodeRepo.findByIdAndOwnerId(parentId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
+            parentNode = nodeProvider.getNodeById(parentId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
             zipRequest.setParentId(parentId);
             path = parentNode.getPath();
         }
@@ -88,12 +94,12 @@ public class NodeService implements INodeService{
         Node zipNode = new Node(zipRequest.getName(), user.getId(), parentId, path);
         zipNode.setType(NodeType.FILE);
         zipNode.getFields().putAll(zipRequest.getFields());
-        zipNode = fixNameConflict(zipNode);
+        zipNode = fixNameConflict(zipNode, user);
         // saving zip file content to database
         String fileId = saveFile(zipNode, zipRequest.getContent());
         if(fileId!=null){
             // adding file version
-            String contentHash = tools.hash(zipRequest.getContent());
+            String contentHash = HashTool.hash(zipRequest.getContent());
             FileVersion fileVersion = new FileVersion(fileId, user.getId(),
                     zipRequest.getOriginalName(), zipRequest.getFileSize(),
                     zipRequest.getContentType(), zipRequest.getExtension(),
@@ -101,31 +107,30 @@ public class NodeService implements INodeService{
             zipNode.setCurrentFileVersion(fileVersion);
         }
        // saving node
-        zipNode = nodeRepo.insert(zipNode);
+        zipNode = nodeProvider.insertNode(user.getId(), zipNode);
         return zipNode;
     }
 
     @Override
     public Node insertNode(IUser user, NodeWebRequest nodeWebRequest) throws CustomException {
         String parentId = nodeWebRequest.getParentId();
-        Node parentNode = null;
+        Node parentNode;
         List<String> path = new ArrayList<>();
         if(parentId != null){
-            parentNode = nodeRepo.findByIdAndOwnerId(parentId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
+            parentNode = nodeProvider.getNodeById(parentId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
             nodeWebRequest.setParentId(parentId);
             path = parentNode.getPath();
         }
         path.add(nodeWebRequest.getName());
         nodeWebRequest.setPath(path);
         Node node = NodeWebRequest.toNode(nodeWebRequest);
-        node.setOwnerId(user.getId());
         // fix name
-        node = fixNameConflict(node);
+        node = fixNameConflict(node, user);
         // save file
         String fileId = saveFile(node, nodeWebRequest.getFileContent());
         // adding file version
         if(fileId!=null){
-            String contentHash = tools.hash(nodeWebRequest.getContent());
+            String contentHash = HashTool.hash(nodeWebRequest.getContent());
             FileVersion fileVersion = new FileVersion(fileId, user.getId(),
                     nodeWebRequest.getOriginalName(), nodeWebRequest.getFileSize(),
                     nodeWebRequest.getContentType(), nodeWebRequest.getExtension(),
@@ -133,8 +138,8 @@ public class NodeService implements INodeService{
             node.setCurrentFileVersion(fileVersion);
         }
         try {
-            Node createdNode = nodeRepo.insert(node);
-            return addParent(createdNode); // just more details
+            Node createdNode = nodeProvider.insertNode(user.getId(), node);
+            return addParent(createdNode, user); // just more details
         }catch (org.springframework.dao.DuplicateKeyException e){
             throw new CustomException(e, NODE_ALREADY_EXISTS_WITH_SAME_KEYS, node.getName(), user.getId(), parentId);
         }catch (Exception e){
@@ -144,12 +149,12 @@ public class NodeService implements INodeService{
 
     @Override
     public Node updateNode(IUser user, String nodeId, NodeWebRequest nodeWebRequest) throws CustomException {
-        Node node = nodeRepo.findByIdAndOwnerId(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, nodeId));
+        Node node = nodeProvider.getNodeById(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID, nodeId));
         String parentId = nodeWebRequest.getParentId();
-        Node parentNode = null;
+        Node parentNode;
         List<String> path = new ArrayList<>();
         if(parentId != null){
-            parentNode = nodeRepo.findByIdAndOwnerId(parentId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
+            parentNode = nodeProvider.getNodeById(parentId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
             nodeWebRequest.setParentId(parentId);
             path = parentNode.getPath();
 
@@ -162,7 +167,7 @@ public class NodeService implements INodeService{
         // adding file version
         if(fileId!=null){
             FileVersion currentVersion = node.getCurrentFileVersion();
-            String contentHash = tools.hash(nodeWebRequest.getContent());
+            String contentHash = HashTool.hash(nodeWebRequest.getContent());
             FileVersion fileVersion = new FileVersion(
                     fileId,
                     user.getId(),
@@ -186,8 +191,8 @@ public class NodeService implements INodeService{
             node.setCurrentFileVersion(fileVersion.hashVersion());
         }
         try {
-            Node createdNode = nodeRepo.save(node);
-            return addParent(createdNode);
+            Node createdNode = nodeProvider.saveNode(user.getId(), node);
+            return addParent(createdNode, user);
         }catch (org.springframework.dao.DuplicateKeyException e){// catch duplicate key exception
             throw new CustomException(e, NODE_ALREADY_EXISTS_WITH_SAME_KEYS, node.getName(), user.getId(), parentId);
         }catch (Exception e){
@@ -198,14 +203,14 @@ public class NodeService implements INodeService{
     @Override
     public int deleteNode(IUser user, String nodeId) throws CustomException {
         // just counting before and after deleting
-        int count = nodeRepo.countById(nodeId);
-        nodeRepo.deleteById(nodeId);
-        return count - nodeRepo.countById(nodeId);
+        int count = nodeProvider.countById(nodeId, user.getId());
+        nodeProvider.deleteById(nodeId, user.getId());
+        return count - nodeProvider.countById(nodeId, user.getId());
     }
 
     @Override
-    public List<Node> getRootNodes(IUser user){
-        return nodeRepo.findByOwnerIdAndParentIdNull(user.getId());
+    public List<Node> getRootNodes(IUser user) throws CustomException {
+        return nodeProvider.getByOwnerIdAndParentId(user.getId(), null);
     }
 
     /********** for nodes from ftp server *******************/
@@ -222,7 +227,7 @@ public class NodeService implements INodeService{
             // build Version
             if(fileId!=null){
                 FileVersion currentVersion = node.getCurrentFileVersion();
-                String contentHash = tools.hash(nodeFtpRequest.getContent());
+                String contentHash = HashTool.hash(nodeFtpRequest.getContent());
                 FileVersion fileVersion = new FileVersion(
                         fileId,
                         user.getId(),
@@ -241,7 +246,7 @@ public class NodeService implements INodeService{
                 // set current version
                 node.setCurrentFileVersion(fileVersion);
             }
-            node = nodeRepo.save(node);
+            node = nodeProvider.saveNode(user.getId(), node);
             logger.log(Level.INFO, node.toString());
             return node;
         }
@@ -316,7 +321,7 @@ public class NodeService implements INodeService{
                         ZipEntry zipEntry = new ZipEntry(entryName);
                         zos.putNextEntry(zipEntry);
                         byte[] bytes = new byte[(int) node.getFileSize()];
-                        try(BufferedInputStream bis = new BufferedInputStream(node.getContent());) {
+                        try(BufferedInputStream bis = new BufferedInputStream(node.getContent())) {
                             int readBytes = bis.read(bytes);
                             if(readBytes>0)
                                 zos.write(bytes, 0, bytes.length);
@@ -349,8 +354,7 @@ public class NodeService implements INodeService{
         if(inputStream!=null){
             node.setType(NodeType.FILE);
             try (InputStream inputStream1 = inputStream){
-                ObjectId fileId = fileRepo.saveFile(inputStream1, node);
-                return fileId.toHexString();
+                return fileProvider.saveFile(inputStream1, node.getName(), node.getContentType(), node);
             }catch (Exception e){
                 throw new CustomException(e, ERROR_WHILE_SAVING_FILE, node.getName());
             }
@@ -360,7 +364,6 @@ public class NodeService implements INodeService{
 
     public String saveFile(Node node, byte[] bytes) throws CustomException {
         if(bytes!=null && bytes.length>0){
-            node.setType(NodeType.FILE);
             try (InputStream in = new ByteArrayInputStream(bytes)){
                 return saveFile(node, in);
             }catch (Exception e){
@@ -370,19 +373,19 @@ public class NodeService implements INodeService{
         return null;
     }
 
-    public Node getNodeFromPath(IUser user, List<String> pathParts, boolean allowInsert){
+    public Node getNodeFromPath(IUser user, List<String> pathParts, boolean allowInsert) throws CustomException {
         //List<NodeNew> pathNodes = new ArrayList<>();
         String parentId = null;
         Node createdNode = null;
         for (int i = 0 ; i < pathParts.size(); i++){
             String nodeName = pathParts.get(i);
-            Node foundedNode = getByNameAndOwnerIdAndParentId(nodeName, user.getId(), parentId);
+            Node foundedNode = nodeProvider.getByNameAndOwnerIdAndParentId(nodeName, user.getId(), parentId);
             if(foundedNode==null){
                 if(!allowInsert)
                     return null;
                 List<String> path = i==0 ? Collections.singletonList(nodeName) : pathParts.subList(0,i);
                 createdNode = new Node(nodeName, user.getId(), parentId, path);
-                createdNode = nodeRepo.insert(createdNode);
+                createdNode = nodeProvider.insertNode(user.getId(), createdNode);
             }else{
                  createdNode = foundedNode;
             }
@@ -392,24 +395,19 @@ public class NodeService implements INodeService{
         return createdNode;
     }
 
-    public Node getByNameAndOwnerIdAndParentId(String name, String ownerId, String parentId){
-        if(parentId!=null)
-            return nodeRepo.findByNameAndOwnerIdAndParentIdNotNull(name, ownerId, parentId);
-        return nodeRepo.findByNameAndOwnerIdAndParentIdNull(name, ownerId);
-    }
 
-    public Node addChildren(Node node){
+    public Node addChildren(Node node, IUser user) throws CustomException {
         // add children if exist
-        List<Node> children = nodeRepo.findByOwnerIdAndParentId(node.getOwnerId(), node.getId());
+        List<Node> children = nodeProvider.getByOwnerIdAndParentId(user.getId(), node.getId());
         node.setChildren(children);
         return node;
     }
 
-    public Node addParent(Node node){
+    public Node addParent(Node node, IUser user) throws CustomException {
         // add parent if exist
         if(node.getParentId()==null)
             return node;
-        Node parent = nodeRepo.findByIdAndOwnerId(node.getParentId(), node.getOwnerId()).orElse(null);
+        Node parent = nodeProvider.getNodeById(node.getParentId(), user.getId()).orElse(null);
         node.setParent(parent);
         return node;
     }
@@ -426,21 +424,25 @@ public class NodeService implements INodeService{
     public Node addContentWithFail(Node node) throws CustomException {
         if(node.getFileId()==null)
             return node;
-        try {
-            InputStream inputStream = fileRepo.getResource(node.getFileId()).getInputStream();
-            node.setContent(inputStream);
-        } catch (IOException e) {
-            throw new CustomException(e, ERROR_WHILE_READING_FILE_CONTENT, node.getName());
-        }
+        InputStream inputStream = fileProvider.getInputStream(node.getFileId());
+        node.setContent(inputStream);
         return node;
     }
 
-    public Node getWithSameKey(Node node){
-        return getByNameAndOwnerIdAndParentId(node.getName(), node.getOwnerId(), node.getParentId());
+    public Node addContentWithFail(Node node, int startPos, int endPos) throws CustomException {
+        if(node.getFileId()==null)
+            return node;
+        InputStream inputStream = fileProvider.getInputStream(node.getFileId(), startPos, endPos);
+        node.setContent(inputStream);
+        return node;
     }
 
-    public Node fixNameConflict(Node node){
-        Node nodeWithSameKey = getWithSameKey(node);
+    public Node getWithSameKey(Node node, IUser user) throws CustomException {
+        return nodeProvider.getByNameAndOwnerIdAndParentId(node.getName(), user.getId(), node.getParentId());
+    }
+
+    public Node fixNameConflict(Node node, IUser user) throws CustomException {
+        Node nodeWithSameKey = getWithSameKey(node, user);
         if(nodeWithSameKey!=null){
             String oldName = node.getName();
             String generatedName = oldName+"_"+System.currentTimeMillis();

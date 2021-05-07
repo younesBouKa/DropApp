@@ -18,34 +18,34 @@ import java.util.Map;
         @CompoundIndex(name = "name_ownerId_parentId", def = "{'name':1, 'parentId':1, 'ownerId':1}", unique = true),
         @CompoundIndex(name = "_id", def = "{'_id':1}", unique = true)
 })
-@Document(collection = "node_new")
+@Document(collection = "node")
 public class Node implements Serializable {
     @Id
-    String id;
-    String name;
-    String ownerId;
-    NodeType type = NodeType.FOLDER;
+    private String id;
+    private String name;
+    private String ownerId;
+    private NodeType type = NodeType.FOLDER;
 
-    String parentId;
-    List<String> path;
+    private String parentId;
+    private List<String> path;
 
-    FileVersion currentFileVersion = new FileVersion();
-    List<FileVersion> versions = new ArrayList<>();
+    private FileVersion currentFileVersion = new FileVersion();
+    private List<FileVersion> versions = new ArrayList<>();
 
-    String label;
-    String description;
+    private String label;
+    private String description;
 
-    Instant creationDate = Instant.now();
-    Instant modificationDate = Instant.now();
+    private Instant creationDate = Instant.now();
+    private Instant modificationDate = Instant.now();
 
-    Map<String, Object> fields = new HashMap<>();
+    private Map<String, Object> fields = new HashMap<>();
 
     @Transient
-    Node parent;
+    private Node parent;
     @Transient
-    List<Node> children;
+    private List<Node> children;
     @Transient
-    InputStream content;
+    private InputStream content;
 
     public Node(){}
 
@@ -170,14 +170,6 @@ public class Node implements Serializable {
         this.content = content;
     }
 
-    public String getOwnerId() {
-        return ownerId;
-    }
-
-    public void setOwnerId(String ownerId) {
-        this.ownerId = ownerId;
-    }
-
     public String getLabel() {
         return label;
     }
@@ -216,5 +208,13 @@ public class Node implements Serializable {
 
     public void setVersions(List<FileVersion> versions) {
         this.versions = versions;
+    }
+
+    public String getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(String ownerId) {
+        this.ownerId = ownerId;
     }
 }

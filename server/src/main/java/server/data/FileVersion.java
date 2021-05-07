@@ -1,6 +1,6 @@
 package server.data;
 
-import server.tools.tools;
+import server.tools.HashTool;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -120,7 +120,7 @@ public class FileVersion {
     }
 
     public FileVersion hashVersion(){
-        versionHash = tools.hash(getContentType()
+        versionHash = HashTool.hash(getContentType()
                 +getExtension()
                 +getFileSize()
                 +getContentHash()

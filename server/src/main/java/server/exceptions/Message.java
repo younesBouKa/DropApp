@@ -1,6 +1,9 @@
 package server.exceptions;
 
 public enum Message {
+
+    NO_PERMISSION("You don't have permission '%s' on resource '%s'"),
+
     EMPTY_PARAMS("Empty parameter '%s'"),
     EMPTY_RESULT("Empty result '%s'"),
     NULL_PARAMS("Null parameter '%s'"),
@@ -44,7 +47,10 @@ public enum Message {
 
     // used in user security
     USERNAME_ALREADY_TAKEN("Username already taken '%s'"),
-    EMAIL_ALREADY_TAKEN("Email already taken '%s'")
+    EMAIL_ALREADY_TAKEN("Email already taken '%s'"),
+
+    // file content
+    INDEX_OUT_OF_BOUND("Index out of bound '%d' length '%d'"),
     ;
 
     private String message;
