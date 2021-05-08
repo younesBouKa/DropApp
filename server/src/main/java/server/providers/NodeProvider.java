@@ -1,5 +1,6 @@
 package server.providers;
 
+import io.jsonwebtoken.lang.Assert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,8 @@ public class NodeProvider implements INodeProvider{
 
     @Override
     public Node insertNode(String userId, Node node) throws CustomException {
+        Assert.notNull(node.getName(), "Node name can't be null");
+        Assert.notNull(userId, "user id can't be null");
         String parentId = node.getParentId();
         if(parentId!=null)
             accessProvider.assertPermission(parentId, userId, WRITE);
@@ -34,6 +37,8 @@ public class NodeProvider implements INodeProvider{
 
     @Override
     public Node saveNode(String userId, Node node) throws CustomException {
+        Assert.notNull(node.getName(), "Node name can't be null");
+        Assert.notNull(userId, "user id can't be null");
         accessProvider.assertPermission(node.getId(), userId, WRITE);
         return nodeRepo.save(node);
     }

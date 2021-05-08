@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import server.data.Node;
 import server.data.NodeType;
-import server.exceptions.CustomException;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -28,7 +27,6 @@ public class NodeWebRequest implements Serializable {
     private byte[] content;
     private long fileSize;
     private String contentType;
-    private String originalName;
     private Map<String, Object> fields = new HashMap<>();
 
     public NodeWebRequest(){
@@ -44,7 +42,7 @@ public class NodeWebRequest implements Serializable {
             try (InputStream in = file.getInputStream()){
                 setContent(IOUtils.toByteArray(in));
             }
-            setOriginalName(file.getOriginalFilename());
+            setName(file.getOriginalFilename());
             setContentType(file.getContentType());
         }catch (IOException e){
             e.printStackTrace();
@@ -52,14 +50,14 @@ public class NodeWebRequest implements Serializable {
     }
 
     public void updateWithFile(File file){
-        if(file==null || !file.canRead()) // TODO add some details here
+        if(file==null || !file.canRead() || !file.isFile())
             return;
         try{
-            setFileSize(Files.size(file.toPath()));
             try (InputStream in = new FileInputStream(file)){
                 setContent(IOUtils.toByteArray(in));
             }
-            setOriginalName(file.getName());
+            setFileSize(Files.size(file.toPath()));
+            setName(file.getName());
         }catch (IOException e){
             e.printStackTrace();
         }
@@ -86,12 +84,8 @@ public class NodeWebRequest implements Serializable {
         return node;
     }
 
-    public byte[] getFileContent() throws CustomException {
+    public byte[] getFileContent(){
         return content;
-    }
-
-    public String getOriginalName(){
-        return originalName!=null ? originalName : name;
     }
 
     public String getContentType(){
@@ -99,7 +93,7 @@ public class NodeWebRequest implements Serializable {
     }
 
     public String getExtension(){
-        return FilenameUtils.getExtension(getOriginalName());
+        return FilenameUtils.getExtension(getName());
     }
 
     public long getFileSize(){
@@ -107,7 +101,7 @@ public class NodeWebRequest implements Serializable {
     }
 
     public String getName() {
-        return name!=null ? name : getOriginalName();
+        return name;
     }
 
     public void setName(String name) {
@@ -176,9 +170,5 @@ public class NodeWebRequest implements Serializable {
 
     public void setContentType(String contentType) {
         this.contentType = contentType;
-    }
-
-    public void setOriginalName(String originalName) {
-        this.originalName = originalName;
     }
 }

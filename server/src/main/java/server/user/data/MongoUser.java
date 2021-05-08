@@ -26,7 +26,6 @@ public class MongoUser implements IUser {
     private int maxIdleTime = -1;
     private Instant birthDate;
     private Set<IRole> roles = new HashSet<>(); // for web authentication
-    private String homeDirectory;
 
     public String getId() {
         return id;
@@ -69,11 +68,7 @@ public class MongoUser implements IUser {
     }
 
     public String getHomeDirectory() {
-        return Optional.of(homeDirectory).orElse("home");
-    }
-
-    public void setHomeDirectory(String homeDirectory) {
-        this.homeDirectory = homeDirectory;
+        return getUsername()+"_"+getId();
     }
 
     public boolean isAdmin() {

@@ -2,6 +2,7 @@ package server.tools;
 
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class Cache<Key,Resource> {
 
@@ -76,7 +77,12 @@ public class Cache<Key,Resource> {
     public Resource update(Key key, Resource resource, Predicate<Resource> searchPredicate){
         // TODO to see later
         Set<Resource> resourceSet = cache.getOrDefault(key, new HashSet<>());
-        resourceSet.removeIf(searchPredicate);
+        resourceSet = resourceSet
+                .stream()
+                .filter(Objects::nonNull)
+                .filter(searchPredicate.negate())
+                .collect(Collectors.toSet());
+        cache.put(key, resourceSet);
         add(key, resource);
         return get(key, searchPredicate);
     }

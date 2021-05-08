@@ -1,5 +1,6 @@
 package server.data;
 
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -13,6 +14,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static server.tools.MimeTypesMap.getMimeType;
 
 @CompoundIndexes({
         @CompoundIndex(name = "name_ownerId_parentId", def = "{'name':1, 'parentId':1, 'ownerId':1}", unique = true),
@@ -187,7 +190,7 @@ public class Node implements Serializable {
     }
 
     public String getOriginalName() {
-        return currentFileVersion.getOriginalName();
+        return currentFileVersion.getOriginalName() !=null ? currentFileVersion.getOriginalName() : getName();
     }
 
     public String getExtension() {

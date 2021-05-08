@@ -7,8 +7,6 @@ import org.springframework.stereotype.Component;
 import server.data.IUser;
 import server.data.Node;
 import server.data.NodeType;
-import server.exceptions.CustomException;
-import server.exceptions.Message;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,7 +26,6 @@ public class NodeFtpRequest implements Serializable {
     private List<String> path;
     private long fileSize;
     private String contentType;
-    private String originalName;
     private NodeType type;
     private Map<String, Object> fields = new HashMap<>();
     private byte[] content;
@@ -48,13 +45,12 @@ public class NodeFtpRequest implements Serializable {
 
     public void updateWithFile(FtpFile file){
         try{
-            if(file==null || !file.isReadable())
+            if(file==null || !file.isReadable() || !file.isFile())
                 return;
             setFileSize(file.getSize());
             try(InputStream in = file.createInputStream(0)){
                 setContent(IOUtils.toByteArray(in));
             }
-            setOriginalName(file.getName());
             setName(file.getName());
             setType(file.isFile()? NodeType.FILE: NodeType.FOLDER);
         }catch (IOException e){
@@ -74,10 +70,14 @@ public class NodeFtpRequest implements Serializable {
                 node.getFields().put(key, fields.get(key));
             }
         }
-        node.setName(nodeFtpRequest.getName());
-        node.setOwnerId(nodeFtpRequest.getUser().getId());
-        node.setPath(nodeFtpRequest.getPath());
-        node.setType(nodeFtpRequest.getType());
+        if(nodeFtpRequest.getName()!=null)
+            node.setName(nodeFtpRequest.getName());
+        if(nodeFtpRequest.getUser()!=null)
+            node.setOwnerId(nodeFtpRequest.getUser().getId());
+        if(nodeFtpRequest.getPath()!=null)
+            node.setPath(nodeFtpRequest.getPath());
+        if(nodeFtpRequest.getType()!=null)
+            node.setType(nodeFtpRequest.getType());
         node.setModificationDate(Instant.now());
         return node;
     }
@@ -86,12 +86,8 @@ public class NodeFtpRequest implements Serializable {
         return content;
     }
 
-    public String getOriginalName(){
-        return originalName!=null ? originalName : name;
-    }
-
     public String getExtension(){
-        return FilenameUtils.getExtension(getOriginalName());
+        return FilenameUtils.getExtension(getName());
     }
 
     public String getName() {
@@ -107,7 +103,7 @@ public class NodeFtpRequest implements Serializable {
     }
 
     public String getContentType() {
-        return contentType!=null ? contentType: URLConnection.getFileNameMap().getContentTypeFor(getOriginalName());
+        return contentType!=null ? contentType: URLConnection.getFileNameMap().getContentTypeFor(getName());
     }
 
     public String getOwnerId() {
@@ -156,10 +152,6 @@ public class NodeFtpRequest implements Serializable {
 
     public void setContentType(String contentType) {
         this.contentType = contentType;
-    }
-
-    public void setOriginalName(String originalName) {
-        this.originalName = originalName;
     }
 
     public void setType(NodeType type) {

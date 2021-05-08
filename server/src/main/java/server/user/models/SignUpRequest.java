@@ -10,7 +10,6 @@ public class SignUpRequest implements Serializable {
     private String password;
     private String email;
     private List<String> roles = new ArrayList<>(); // for web authentication
-    private String homeDirectory;
 
     public String getUsername() {
         return username;
@@ -42,13 +41,5 @@ public class SignUpRequest implements Serializable {
 
     public void setRoles(List<String> roles) {
         this.roles = roles;
-    }
-
-    public String getHomeDirectory() {
-        return homeDirectory;
-    }
-
-    public void setHomeDirectory(String homeDirectory) {
-        this.homeDirectory = homeDirectory;
     }
 }

@@ -18,8 +18,9 @@ public class ZipRequest implements Serializable {
     private String name;
     private String parentId;
     private List<String> nodesId;
+    private String description;
+    private String label;
     private byte[] content;
-    private String originalName;
     private long fileSize;
     private String extension;
     private String contentType;
@@ -30,14 +31,14 @@ public class ZipRequest implements Serializable {
     }
 
     public void updateWithFile(File file){
-        if(file==null || !file.canRead())
+        if(file==null || !file.canRead() || !file.isFile())
             return;
         try{
             setFileSize(Files.size(file.toPath()));
             try (InputStream in = new FileInputStream(file)){
                 setContent(IOUtils.toByteArray(in));
             }
-            setOriginalName(file.getName());
+            setName(file.getName());
         }catch (IOException e){
             e.printStackTrace();
         }
@@ -45,14 +46,14 @@ public class ZipRequest implements Serializable {
 
     public String getContentType(){
         try {
-            return contentType!=null? contentType : URLConnection.getFileNameMap().getContentTypeFor(getOriginalName());
+            return contentType!=null? contentType : URLConnection.getFileNameMap().getContentTypeFor(getName());
         }catch (Exception e){
             return "";
         }
     }
 
     public String getExtension(){
-        return extension!=null? extension : FilenameUtils.getExtension(getOriginalName());
+        return extension!=null? extension : FilenameUtils.getExtension(getName());
     }
 
     public long getFileSize(){
@@ -61,10 +62,6 @@ public class ZipRequest implements Serializable {
 
     public String getName() {
         return name;
-    }
-
-    public String getOriginalName() {
-        return originalName!=null ? originalName : name;
     }
 
     public void setName(String name) {
@@ -103,10 +100,6 @@ public class ZipRequest implements Serializable {
         this.nodesId = nodesId;
     }
 
-    public void setOriginalName(String originalName) {
-        this.originalName = originalName;
-    }
-
     public void setFileSize(long fileSize) {
         this.fileSize = fileSize;
     }
@@ -117,5 +110,21 @@ public class ZipRequest implements Serializable {
 
     public void setContentType(String contentType) {
         this.contentType = contentType;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getLabel() {
+        return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
     }
 }

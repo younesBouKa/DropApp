@@ -33,13 +33,12 @@ public class FtpUser implements User, IUser {
 	private static final List<Authority> adminAuthorities = new ArrayList<>(Arrays.asList(new WritePermission("/")));
 	private static final List<Authority> anonAuthorities = new ArrayList<>(Arrays.asList(
 			new ConcurrentLoginPermission(100, 10),
-			new TransferRatePermission(48000, 48000)
+			new TransferRatePermission(48000000, 48000000)
 	));
 
 	public FtpUser(IUser user) {
-		String homeDirectory = user.getHomeDirectory();
-		File root = new File(uploadDir);
-		File home = new File(new File(root, user.getUsername()+"_"+user.getId()), homeDirectory);
+		File uploadRootDir = new File(uploadDir);
+		File home = new File(uploadRootDir, user.getHomeDirectory());
 		Assert.isTrue(home.exists() || home.mkdirs(), "the home directory " + home.getAbsolutePath() + " must exist");
 		List<Authority> authorities = getAuthorities(user);
 		this.username = user.getUsername();

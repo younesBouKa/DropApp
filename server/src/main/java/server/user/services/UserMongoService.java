@@ -6,7 +6,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import server.data.IRole;
 import server.data.IUser;
 import server.exceptions.CustomException;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 import static server.exceptions.Message.EMAIL_ALREADY_TAKEN;
 import static server.exceptions.Message.USERNAME_ALREADY_TAKEN;
 
-@Component
+@Service
 public class UserMongoService implements IUserService {
 
     @Autowired
@@ -45,7 +45,7 @@ public class UserMongoService implements IUserService {
         user.setUsername(signUpRequest.getUsername());
         user.setEmail(signUpRequest.getEmail());
         user.setEnabled(true);
-        user.setHomeDirectory(signUpRequest.getHomeDirectory());
+        //user.setHomeDirectory(signUpRequest.getHomeDirectory());// TODO perhaps i'll use it later
         user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
         user.setAdmin(true); // to fill authorities
         Set<IRole> roles = signUpRequest.getRoles()

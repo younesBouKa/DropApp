@@ -1,6 +1,8 @@
 package server.services;
 
 import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -22,21 +24,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static java.util.logging.Level.SEVERE;
-import static java.util.logging.Level.WARNING;
 import static server.exceptions.Message.*;
 import static server.tools.MimeTypesMap.getMimeType;
 
 @Service
 public class NodeService implements INodeService{
-    private final Logger logger = Logger.getLogger(NodeService.class.getName());
+    private final Logger logger = LoggerFactory.getLogger(NodeService.class);
     private final int MAX_HISTORY_SIZE = 10;
+    private static final Object NODE_CREATION_LOCK = new Object();
 
     @Autowired
     private INodeProvider nodeProvider;
@@ -48,6 +47,16 @@ public class NodeService implements INodeService{
     public List<Node> getNodes(IUser user, String parentId, int page, int size, String sortField, String direction, List<String> status, String search) throws CustomException {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.Direction.valueOf(direction), sortField);
         List<Node> nodeList =  nodeProvider.getNodesByUserAndParentIdAndName(user.getId(), parentId, search, pageRequest);
+        for (Node node : nodeList){
+            addParent(node, user);// adding parents
+        }
+        return nodeList;
+    }
+
+    @Override
+    public List<Node> getNodes(IUser user, String parentId) throws CustomException {
+        PageRequest pageRequest = PageRequest.of(0, 100, Sort.Direction.valueOf("ASC"), "creationDate");
+        List<Node> nodeList =  nodeProvider.getNodesByUserAndParentIdAndName(user.getId(), parentId, "", pageRequest);
         for (Node node : nodeList){
             addParent(node, user);// adding parents
         }
@@ -101,7 +110,7 @@ public class NodeService implements INodeService{
             // adding file version
             String contentHash = HashTool.hash(zipRequest.getContent());
             FileVersion fileVersion = new FileVersion(fileId, user.getId(),
-                    zipRequest.getOriginalName(), zipRequest.getFileSize(),
+                    zipRequest.getName(), zipRequest.getFileSize(),
                     zipRequest.getContentType(), zipRequest.getExtension(),
                     zipRequest.getFields(), contentHash).hashVersion();
             zipNode.setCurrentFileVersion(fileVersion);
@@ -132,7 +141,7 @@ public class NodeService implements INodeService{
         if(fileId!=null){
             String contentHash = HashTool.hash(nodeWebRequest.getContent());
             FileVersion fileVersion = new FileVersion(fileId, user.getId(),
-                    nodeWebRequest.getOriginalName(), nodeWebRequest.getFileSize(),
+                    nodeWebRequest.getName(), nodeWebRequest.getFileSize(),
                     nodeWebRequest.getContentType(), nodeWebRequest.getExtension(),
                     nodeWebRequest.getFields(), contentHash).hashVersion();
             node.setCurrentFileVersion(fileVersion);
@@ -171,7 +180,7 @@ public class NodeService implements INodeService{
             FileVersion fileVersion = new FileVersion(
                     fileId,
                     user.getId(),
-                    getValueOr(nodeWebRequest.getOriginalName(), currentVersion.getOriginalName()),
+                    getValueOr(nodeWebRequest.getName(), currentVersion.getOriginalName()),
                     Optional.of(nodeWebRequest.getFileSize()).orElse(currentVersion.getFileSize()),
                     getValueOr(nodeWebRequest.getContentType(), currentVersion.getContentType()),
                     getValueOr(nodeWebRequest.getExtension(), currentVersion.getExtension()),
@@ -231,7 +240,7 @@ public class NodeService implements INodeService{
                 FileVersion fileVersion = new FileVersion(
                         fileId,
                         user.getId(),
-                        getValueOr(nodeFtpRequest.getOriginalName(), currentVersion.getOriginalName()),
+                        getValueOr(nodeFtpRequest.getName(), currentVersion.getOriginalName()),
                         Optional.of(nodeFtpRequest.getFileSize()).orElse(currentVersion.getFileSize()),
                         getValueOr(nodeFtpRequest.getContentType(), currentVersion.getContentType()),
                         getValueOr(nodeFtpRequest.getExtension(), currentVersion.getExtension()),
@@ -247,7 +256,7 @@ public class NodeService implements INodeService{
                 node.setCurrentFileVersion(fileVersion);
             }
             node = nodeProvider.saveNode(user.getId(), node);
-            logger.log(Level.INFO, node.toString());
+            logger.info(node.toString());
             return node;
         }
         throw new CustomException(ERROR_WHILE_SAVING_FILE, nodeFtpRequest.getName());
@@ -267,6 +276,31 @@ public class NodeService implements INodeService{
             return 1;
         }
         return 0;
+    }
+
+    @Override
+    public Node getNodeFromPath(IUser user, List<String> pathParts, boolean allowInsert) throws CustomException {
+        synchronized (NODE_CREATION_LOCK){
+            String parentId = null;
+            Node createdNode = null;
+            pathParts = pathParts.stream().filter(Objects::nonNull).collect(Collectors.toList());
+            for (int i = 0 ; i < pathParts.size(); i++){
+                String nodeName = pathParts.get(i);
+                Node foundedNode = nodeProvider.getByNameAndOwnerIdAndParentId(nodeName, user.getId(), parentId);
+                if(foundedNode==null){
+                    if(!allowInsert)
+                        return null;
+                    List<String> path = i==0 ? Collections.singletonList(nodeName) : pathParts.subList(0,i);
+                    createdNode = new Node(nodeName, user.getId(), parentId, path);
+                    createdNode = nodeProvider.insertNode(user.getId(), createdNode);
+                }else{
+                    createdNode = foundedNode;
+                }
+                parentId = createdNode.getId();
+                //pathNodes.add(createdNode);
+            }
+            return createdNode;
+        }
     }
 
     /********** Tools *******************/
@@ -330,7 +364,7 @@ public class NodeService implements INodeService{
                             entries.add(zipEntry);
                         }
                     } catch (Exception e) {
-                        logger.log(SEVERE, String.format("Error inserting file in the zip : %s, Error: %s %n", node.getName(), e.getMessage()));
+                        logger.error( String.format("Error inserting file in the zip : %s, Error: %s %n", node.getName(), e.getMessage()));
                     }
                 }
 
@@ -339,13 +373,13 @@ public class NodeService implements INodeService{
                 throw new CustomException(ERROR_WHILE_ZIPPING_FILE, path);
             return path.toFile();
         } catch (FileNotFoundException e) {
-            logger.log(SEVERE, String.format("Error while zipping, Error: %s %n", e.getMessage()));
+            logger.error(String.format("Error while zipping, Error: %s %n", e.getMessage()));
             throw new CustomException(e, ZIP_FILE_PATH_NOT_FOUND, e.getMessage());
         } catch (IOException e) {
-            logger.log(SEVERE, String.format("Error while zipping, Error: %s %n",e.getMessage()));
+            logger.error(String.format("Error while zipping, Error: %s %n",e.getMessage()));
             throw new CustomException(e, ERROR_WHILE_ZIPPING_FILE, e.getMessage());
         } catch (Exception e) {
-            logger.log(SEVERE, String.format("Error while zipping nodes Error: %s %n", e.getMessage()));
+            logger.error(String.format("Error while zipping nodes Error: %s %n", e.getMessage()));
             throw new CustomException(e, UNKNOWN_EXCEPTION, e.getMessage());
         }
     }
@@ -373,29 +407,6 @@ public class NodeService implements INodeService{
         return null;
     }
 
-    public Node getNodeFromPath(IUser user, List<String> pathParts, boolean allowInsert) throws CustomException {
-        //List<NodeNew> pathNodes = new ArrayList<>();
-        String parentId = null;
-        Node createdNode = null;
-        for (int i = 0 ; i < pathParts.size(); i++){
-            String nodeName = pathParts.get(i);
-            Node foundedNode = nodeProvider.getByNameAndOwnerIdAndParentId(nodeName, user.getId(), parentId);
-            if(foundedNode==null){
-                if(!allowInsert)
-                    return null;
-                List<String> path = i==0 ? Collections.singletonList(nodeName) : pathParts.subList(0,i);
-                createdNode = new Node(nodeName, user.getId(), parentId, path);
-                createdNode = nodeProvider.insertNode(user.getId(), createdNode);
-            }else{
-                 createdNode = foundedNode;
-            }
-            parentId = createdNode.getId();
-            //pathNodes.add(createdNode);
-        }
-        return createdNode;
-    }
-
-
     public Node addChildren(Node node, IUser user) throws CustomException {
         // add children if exist
         List<Node> children = nodeProvider.getByOwnerIdAndParentId(user.getId(), node.getId());
@@ -416,7 +427,7 @@ public class NodeService implements INodeService{
         try {
             return addContentWithFail(node);
         } catch (Exception e) {
-            logger.log(WARNING, e.getMessage());
+            logger.warn(e.getMessage());
         }
         return node;
     }
