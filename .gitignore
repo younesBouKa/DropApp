@@ -28,4 +28,3 @@ pnpm-debug.log*
 *.sln
 *.sw?
 /server/server.iml
-/server/src/main/java/server/dot/

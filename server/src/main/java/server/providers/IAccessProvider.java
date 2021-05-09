@@ -1,7 +1,10 @@
 package server.providers;
 
+import server.data.Access;
 import server.data.Permissions;
 import server.exceptions.CustomException;
+
+import java.util.List;
 
 public interface IAccessProvider{
 
@@ -11,4 +14,8 @@ public interface IAccessProvider{
      boolean addAllPermissions(String resourceId, String requesterId);
      boolean deletePermission(String resourceId, String requesterId, Permissions permission);
 
+     void deleteAllPermissions(String resourceId, String requesterId);
+
+     List<Access> getAllAccessForRequester(String requesterId);
+    Access getPermission(String requesterId, String resourceId);
 }

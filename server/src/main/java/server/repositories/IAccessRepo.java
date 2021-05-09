@@ -9,5 +9,7 @@ public interface IAccessRepo  extends MongoRepository<Access, String> {
 
     List<Access> findAllByRequesterId(String requesterId);
     List<Access> findAllByResourceId(String resourceId);
+    List<Access> findAllByResourceIdAndRequesterIdIn(String resourceId, List<String> requesterList);
     Access findByResourceIdAndRequesterId(String resourceId, String requesterId);
+    void deleteByResourceIdAndRequesterId(String resourceId, String requesterId);
 }

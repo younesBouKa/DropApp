@@ -4,9 +4,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import server.data.Access;
 import server.data.Permissions;
+import server.data.UserGroup;
 import server.exceptions.CustomException;
 import server.repositories.IAccessRepo;
 import server.tools.Cache;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static server.exceptions.Message.NO_PERMISSION;
 
@@ -17,11 +21,25 @@ public class AccessProvider implements IAccessProvider{
 
     @Autowired
     IAccessRepo accessRepo;
+    @Autowired
+    IGroupProvider groupProvider;
 
     @Override
     public boolean hasPermission(String resourceId, String requesterId, Permissions permission){
         Access access = getAccess(resourceId, requesterId);
-        return access!=null && permission.isIn(access.getPermission());
+        if(access!=null && permission.isIn(access.getPermission()))
+            return true;
+        else{
+            List<UserGroup> userGroupList = groupProvider.getEnabledGroupsForUserId(requesterId);
+            if(!userGroupList.isEmpty()){
+                List<String> groupIds = userGroupList.stream().map(UserGroup::getGroupId).collect(Collectors.toList());
+                for(String groupId : groupIds){
+                    if(hasPermission(resourceId, groupId, permission))
+                        return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override
@@ -68,6 +86,22 @@ public class AccessProvider implements IAccessProvider{
             return true;
     }
 
+    @Override
+    public void deleteAllPermissions(String resourceId, String requesterId){
+        accessRepo.deleteByResourceIdAndRequesterId(resourceId, requesterId);
+        removeFromCache(resourceId, requesterId);
+    }
+
+    @Override
+    public List<Access> getAllAccessForRequester(String requesterId) {
+        return accessRepo.findAllByRequesterId(requesterId);
+    }
+
+    @Override
+    public Access getPermission(String requesterId, String resourceId) {
+        return getAccess(resourceId, requesterId);
+    }
+
     /********** tools *****************************/
     public Access getAccess(String resourceId, String requesterId){
         Access access = accessCache.get(resourceId, (acc)-> requesterId.equals(acc.getRequesterId()));
@@ -78,8 +112,11 @@ public class AccessProvider implements IAccessProvider{
         return access;
     }
 
-    public boolean updateCache(String resourceId, String requesterId, Access access){
+    public void updateCache(String resourceId, String requesterId, Access access){
         Access updatedAccess = accessCache.update(resourceId, access, acc-> requesterId.equals(acc.getRequesterId()));
-        return updatedAccess!=null;
+    }
+
+    public void removeFromCache(String resourceId, String requesterId){
+        accessCache.delete(resourceId, acc -> requesterId.equals(acc.getRequesterId()));
     }
 }
