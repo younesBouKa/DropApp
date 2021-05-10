@@ -1,17 +1,18 @@
 package server.repositories;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
-import server.data.UserGroup;
+import server.data.GroupMembership;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface IUserGroupRepo extends MongoRepository<UserGroup, String> {
+public interface IUserGroupRepo extends MongoRepository<GroupMembership, String> {
 
-    Optional<UserGroup> findById(String id);
-    List<UserGroup> findByUserId(String userId);
-    List<UserGroup> findByUserIdAndEnable(String userId, boolean enable);
-    void deleteById(String id);
+    Optional<GroupMembership> findById(String groupId);
+    GroupMembership findByGroupIdAndMemberId(String groupId, String memberId);
+    List<GroupMembership> findByMemberId(String memberId);
+    List<GroupMembership> findByMemberIdAndEnable(String memberId, boolean enable);
+    void deleteById(String groupId);
     void deleteAllByGroupId(String groupId);
-    void deleteByUserIdAndGroupId(String userId, String groupId);
+    void deleteByMemberIdAndGroupId(String memberId, String groupId);
 }

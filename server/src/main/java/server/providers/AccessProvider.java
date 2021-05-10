@@ -3,8 +3,8 @@ package server.providers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import server.data.Access;
+import server.data.GroupMembership;
 import server.data.Permissions;
-import server.data.UserGroup;
 import server.exceptions.CustomException;
 import server.repositories.IAccessRepo;
 import server.tools.Cache;
@@ -30,9 +30,9 @@ public class AccessProvider implements IAccessProvider{
         if(access!=null && permission.isIn(access.getPermission()))
             return true;
         else{
-            List<UserGroup> userGroupList = groupProvider.getEnabledGroupsForUserId(requesterId);
+            List<GroupMembership> userGroupList = groupProvider.getEnabledGroupsForMemberId(requesterId);
             if(!userGroupList.isEmpty()){
-                List<String> groupIds = userGroupList.stream().map(UserGroup::getGroupId).collect(Collectors.toList());
+                List<String> groupIds = userGroupList.stream().map(GroupMembership::getGroupId).collect(Collectors.toList());
                 for(String groupId : groupIds){
                     if(hasPermission(resourceId, groupId, permission))
                         return true;

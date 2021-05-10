@@ -4,8 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import server.data.Group;
+import server.data.GroupMembership;
 import server.data.IUser;
-import server.data.UserGroup;
+import server.dot.GroupDotIn;
+import server.dot.MembershipDotIn;
 import server.exceptions.CustomException;
 import server.services.IGroupService;
 import server.user.services.CustomUserDetails;
@@ -28,40 +30,33 @@ public class GroupController {
 
     @GetMapping("")
     public List<Group> listOwnGroups() throws CustomException {
-        return groupService.getOwnGroups(currentUser().getId());
-    }
-
-    @GetMapping("/bellow")
-    public List<Group> listGroupsToBellow() throws CustomException {
         return groupService.getGroupsToBellow(currentUser().getId());
     }
 
     @PostMapping
-    public Group addGroup(@RequestBody Group group) throws CustomException {
-        // TODO add dot here
-        return groupService.addGroup(currentUser().getId(), group);
+    public Group addGroup(@RequestBody GroupDotIn groupDotIn) throws CustomException {
+        return groupService.addGroup(currentUser().getId(), groupDotIn);
     }
 
     @PutMapping("/{groupId}")
-    public Group updateGroup(@PathVariable(name = "groupId") String groupId , @RequestBody Group group) throws CustomException {
-        // TODO add dot here
-        return groupService.updateGroup(currentUser().getId(), groupId, group);
+    public Group updateGroup(@PathVariable(name = "groupId") String groupId , @RequestBody GroupDotIn groupDotIn) throws CustomException {
+        return groupService.updateGroup(currentUser().getId(), groupId, groupDotIn);
     }
 
     @DeleteMapping("/{groupId}")
-    public boolean addGroup(@PathVariable(name = "groupId") String groupId ) throws CustomException {
+    public boolean deleteGroup(@PathVariable(name = "groupId") String groupId ) throws CustomException {
         return groupService.deleteGroup(currentUser().getId(), groupId);
     }
 
-    @PostMapping("/addUser")
-    public UserGroup addUserToGroup(@RequestBody UserGroup userGroup) throws CustomException {
-        // TODO add dot here
-        return groupService.addUserToGroup(currentUser().getId(), userGroup.getUserId(), userGroup.getGroupId());
+    @PostMapping("/{groupId}/addMember")
+    public GroupMembership addMemberToGroup(@PathVariable(name = "groupId") String groupId ,@RequestBody MembershipDotIn membershipDotIn) throws CustomException {
+        membershipDotIn.setGroupId(groupId);
+        return groupService.addMemberToGroup(currentUser().getId(), membershipDotIn);
     }
 
-    @DeleteMapping("/{groupId}/{userId}")
-    public boolean removeUserFromGroup(@PathVariable(name = "groupId") String groupId, @PathVariable(name = "userId") String userId ) throws CustomException {
-        return groupService.removeUserFromGroup(currentUser().getId(), userId, groupId);
+    @DeleteMapping("/{groupId}/{memberId}")
+    public boolean removeMemberFromGroup(@PathVariable(name = "groupId") String groupId, @PathVariable(name = "memberId") String memberId ) throws CustomException {
+        return groupService.removeMemberFromGroup(currentUser().getId(), memberId, groupId);
     }
     /***** tools *******************************/
     public static IUser currentUser(){

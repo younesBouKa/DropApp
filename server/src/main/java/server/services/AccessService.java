@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import server.data.Access;
 import server.data.Permissions;
+import server.dot.AccessDotIn;
 import server.providers.IAccessProvider;
 
 import java.util.List;
@@ -63,7 +64,7 @@ public class AccessService implements IAccessService {
     }
 
     @Override
-    public String generateAccessToken(String userId, Access access) {
+    public String generateAccessToken(String userId, AccessDotIn accessDotIn) {
         // TODO add control one userId here
         // TODO more work
         // 1- get user

@@ -2,6 +2,7 @@ package server.services;
 
 import server.data.Access;
 import server.data.Permissions;
+import server.dot.AccessDotIn;
 
 import java.util.List;
 
@@ -21,5 +22,5 @@ public interface IAccessService {
 
     void removeAllPermissions(String userId, String requesterId, String resourceId);
 
-    String generateAccessToken(String userId, Access access);
+    String generateAccessToken(String userId, AccessDotIn accessDotIn);
 }

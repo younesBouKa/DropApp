@@ -6,19 +6,19 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @CompoundIndexes(
-        @CompoundIndex(name = "userId_groupId",def = "{'userId':1,'groupId':1}",unique = true)
+        @CompoundIndex(name = "memberId_groupId",def = "{'memberId':1,'groupId':1}",unique = true)
 )
-@Document("user_group")
-public class UserGroup {
+@Document("membership")
+public class GroupMembership {
     @Id
     private String id;
-    private String userId;
     private String groupId;
+    private String memberId;
     private boolean enable = true;
     private String role;
 
-    public UserGroup(String userId, String groupId, String role) {
-        this.userId = userId;
+    public GroupMembership(String groupId, String memberId, String role) {
+        this.memberId = memberId;
         this.groupId = groupId;
         this.role = role;
     }
@@ -29,14 +29,6 @@ public class UserGroup {
 
     public void setId(String id) {
         this.id = id;
-    }
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public void setUserId(String userId) {
-        this.userId = userId;
     }
 
     public String getGroupId() {
@@ -61,5 +53,13 @@ public class UserGroup {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getMemberId() {
+        return memberId;
+    }
+
+    public void setMemberId(String memberId) {
+        this.memberId = memberId;
     }
 }

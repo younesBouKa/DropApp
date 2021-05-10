@@ -6,6 +6,7 @@ import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.*;
 import server.data.Access;
 import server.data.IUser;
+import server.dot.AccessDotIn;
 import server.exceptions.CustomException;
 import server.services.IAccessService;
 import server.user.services.CustomUserDetails;
@@ -31,34 +32,31 @@ public class AccessController {
     }
 
     @PostMapping("/add")
-    public boolean addPermission(@RequestBody Access access) throws CustomException {
-        // TODO must create a DOT for access request
-        Assert.notNull(access.getResourceId(), "Resource id can't be null");
-        Assert.notNull(access.getRequesterId(), "Requester id can't be null");
-        return accessService.addPermission(currentUser().getId(),access.getRequesterId(), access.getResourceId(), access.getPermission());
+    public boolean addPermission(@RequestBody AccessDotIn accessDotIn) throws CustomException {
+        Assert.notNull(accessDotIn.getResourceId(), "Resource id can't be null");
+        Assert.notNull(accessDotIn.getRequesterId(), "Requester id can't be null");
+        return accessService.addPermission(currentUser().getId(),accessDotIn.getRequesterId(), accessDotIn.getResourceId(), accessDotIn.getPermission());
     }
 
     @DeleteMapping("/remove")
-    public boolean removePermission(@RequestBody Access access) throws CustomException {
-        // TODO must create a DOT for access request
-        Assert.notNull(access.getResourceId(), "Resource id can't be null");
-        Assert.notNull(access.getRequesterId(), "Requester id can't be null");
-        return accessService.removePermission(currentUser().getId(),access.getRequesterId(), access.getResourceId(), access.getPermission());
+    public boolean removePermission(@RequestBody AccessDotIn accessDotIn) throws CustomException {
+        Assert.notNull(accessDotIn.getResourceId(), "Resource id can't be null");
+        Assert.notNull(accessDotIn.getRequesterId(), "Requester id can't be null");
+        return accessService.removePermission(currentUser().getId(),accessDotIn.getRequesterId(), accessDotIn.getResourceId(), accessDotIn.getPermission());
     }
 
     @DeleteMapping("/removeAll")
-    public void removeAllPermission(@RequestBody Access access) throws CustomException {
-        // TODO must create a DOT for access request
-        Assert.notNull(access.getResourceId(), "Resource id can't be null");
-        Assert.notNull(access.getRequesterId(), "Requester id can't be null");
-        accessService.removeAllPermissions(currentUser().getId(),access.getRequesterId(), access.getResourceId());
+    public void removeAllPermission(@RequestBody AccessDotIn accessDotIn) throws CustomException {
+        Assert.notNull(accessDotIn.getResourceId(), "Resource id can't be null");
+        Assert.notNull(accessDotIn.getRequesterId(), "Requester id can't be null");
+        accessService.removeAllPermissions(currentUser().getId(),accessDotIn.getRequesterId(), accessDotIn.getResourceId());
     }
 
     @PostMapping("/generateToken")
-    public String generateAccessToken(@RequestBody Access access) throws CustomException {
-        // TODO must create a DOT for access token request
-        Assert.notNull(access.getResourceId(), "Resource id can't be null");
-        return accessService.generateAccessToken(currentUser().getId(),access);
+    public String generateAccessToken(@RequestBody AccessDotIn accessDotIn) throws CustomException {
+        // TODO more work here
+        Assert.notNull(accessDotIn.getResourceId(), "Resource id can't be null");
+        return accessService.generateAccessToken(currentUser().getId(),accessDotIn);
     }
 
     /***** tools *******************************/

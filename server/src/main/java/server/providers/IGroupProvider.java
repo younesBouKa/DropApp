@@ -1,7 +1,8 @@
 package server.providers;
 
 import server.data.Group;
-import server.data.UserGroup;
+import server.data.GroupMembership;
+import server.exceptions.CustomException;
 
 import java.util.List;
 
@@ -9,19 +10,17 @@ public interface IGroupProvider {
 
     Group insertGroup(String adminId, Group group);
 
-    Group saveGroup(String adminId, Group group);
+    Group saveGroup(String adminId, Group group) throws CustomException;
 
-    Group getGroupById(String groupId);
+    Group getGroupById(String adminId, String groupId);
 
-    List<Group> getGroupsByAdminId(String adminId);
+    List<Group> getAllGroupsByMemberId(String memberId);
 
-    List<Group> getAllGroupsByUserId(String userId);
+    List<GroupMembership> getEnabledGroupsForMemberId(String memberId);
 
-    List<UserGroup> getEnabledGroupsForUserId(String userId);
+    boolean deleteGroupById(String adminId, String groupId) throws CustomException;
 
-    boolean deleteById(String adminId, String groupId);
+    boolean removeMemberFromGroup(String adminId, String userId, String groupId) throws CustomException;
 
-    boolean removeUserFromGroup(String adminId, String userId, String groupId);
-
-    UserGroup addUserToGroup(String adminId, String userId, String groupId);
+    GroupMembership addMemberToGroup(String adminId, GroupMembership groupMembership) throws CustomException;
 }

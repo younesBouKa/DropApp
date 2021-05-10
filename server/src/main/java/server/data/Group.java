@@ -13,7 +13,6 @@ public class Group {
     @Id
     private String id;
     private String name;
-    private String adminId;
     private String label;
     private String description;
 
@@ -31,14 +30,6 @@ public class Group {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getAdminId() {
-        return adminId;
-    }
-
-    public void setAdminId(String adminId) {
-        this.adminId = adminId;
     }
 
     public String getLabel() {

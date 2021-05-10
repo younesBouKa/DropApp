@@ -1,5 +1,7 @@
 package server.dot;
 
+import server.data.Group;
+
 public class GroupDotIn {
     private String name;
     private String label;
@@ -27,5 +29,20 @@ public class GroupDotIn {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Group toGroup(Group group) {
+        if(getName()!=null)
+            group.setName(getName());
+        if(getLabel()!=null)
+            group.setLabel(getLabel());
+        if(getDescription()!=null)
+            group.setDescription(getDescription());
+        return group;
+    }
+
+    public Group toGroup() {
+        Group group = new Group();
+       return toGroup(group);
     }
 }

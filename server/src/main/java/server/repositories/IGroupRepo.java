@@ -9,10 +9,5 @@ import java.util.Optional;
 public interface IGroupRepo extends MongoRepository<Group, String> {
 
     Optional<Group> findById(String id);
-    Group findByIdAndAdminIdAndName(String groupId, String adminId, String name);
-    Group findByIdAndAdminId(String groupId, String adminId);
     List<Group> findByIdIn(List<String> groupIds);
-    List<Group> findByAdminId(String adminId);
-    void deleteByIdAndAdminId(String groupId, String adminId);
-
 }

@@ -51,6 +51,11 @@ public enum Message {
 
     // file content
     INDEX_OUT_OF_BOUND("Index out of bound '%d' length '%d'"),
+    // groups
+    GROUPS_MEMBERSHIP_LOOP("Loop is detected between groups '%s' and '%s'"),
+    GROUP_NOT_FOUND("Group '%s' not found"),
+    MEMBERSHIP_NOT_FOUND("Membership with groupId '%s' and memberId '%s' not found"),
+    NOT_ADMIN_IN_GROUP("You are not admin in group '%s'"),
     ;
 
     private String message;
@@ -71,7 +76,7 @@ public enum Message {
 
     public String format(Object[] args) {
         if(args==null || args.length==0)
-            this.message = this.message.replaceAll("%s","");
+            this.message = this.message.replaceAll("'%s'","");
         else
             this.message = String.format(this.message, args);
         return this.message;

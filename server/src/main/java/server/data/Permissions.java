@@ -6,11 +6,12 @@ import java.util.stream.Collectors;
 
 /**
  * 0	No Permission	        ---
- * 1	read	                  r--
- * 2	write 	                    -w-
- * 4	share	                      --s
+ * 2	read	                  r--
+ * 4	write 	                    -w-
+ * 8	share	                      --s
  * 6	Read +Write 	                rw-
- * 7	Read + Write + Share	            rws
+ * 10	Read + Share    	                r-s
+ * 14	Read + Write + Share    	            rws
  */
 public enum Permissions {
     NO(0b0,"No"),
