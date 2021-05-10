@@ -9,7 +9,7 @@ public class JwtResponse implements Serializable {
 
     private String id;
     private String token;
-    private String type;
+    private String type = "Bearer";
     private String username;
     private String email;
     private Set<Role> roles;

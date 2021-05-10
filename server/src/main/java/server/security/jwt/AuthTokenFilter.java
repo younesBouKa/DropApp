@@ -48,10 +48,24 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     }
 
     private String parseJwt(HttpServletRequest request) {
+        String jwt = null;
         String headerAuth = request.getHeader("Authorization");
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
-            return headerAuth.substring(7);
+            jwt = headerAuth.substring(7);
         }
-        return null;
+        if(jwt==null){
+            String tokenParamName = "token";
+            String queryString = request.getQueryString();
+            if(queryString!=null){
+                int indexOfToken = queryString.indexOf(tokenParamName+"=");
+                if(indexOfToken!=-1){
+                    int lastIndexOfToken = queryString.indexOf("&",indexOfToken);
+                    if(lastIndexOfToken==-1)
+                        lastIndexOfToken = queryString.length();
+                    jwt = queryString.substring(indexOfToken+(tokenParamName+"=").length(),lastIndexOfToken);
+                }
+            }
+          }
+        return jwt;
     }
 }
