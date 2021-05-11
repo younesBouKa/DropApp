@@ -9,15 +9,18 @@ import server.exceptions.CustomException;
 import server.repositories.IAccessRepo;
 import server.tools.Cache;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-import static server.exceptions.Message.NO_PERMISSION;
+import static server.exceptions.Message.*;
 
 @Component
 public class AccessProvider implements IAccessProvider{
 
-    Cache<String, Access> accessCache = Cache.getInstance("access");
+    private final Cache<String, Access> accessCache = Cache.getInstance("access");
+    private final Set<String> groupsAlreadyVisited = new HashSet<>();
 
     @Autowired
     IAccessRepo accessRepo;
@@ -29,15 +32,11 @@ public class AccessProvider implements IAccessProvider{
         Access access = getAccess(resourceId, requesterId);
         if(access!=null && permission.isIn(access.getPermission()))
             return true;
-        else{
-            List<GroupMembership> userGroupList = groupProvider.getEnabledGroupsForMemberId(requesterId);
-            if(!userGroupList.isEmpty()){
-                List<String> groupIds = userGroupList.stream().map(GroupMembership::getGroupId).collect(Collectors.toList());
-                for(String groupId : groupIds){
-                    if(hasPermission(resourceId, groupId, permission))
-                        return true;
-                }
-            }
+        // following lines can be removed if no groups are implemented
+        try {
+            return hasAccessFromParents(resourceId, requesterId, permission);
+        }catch (Exception e){
+            e.printStackTrace();
         }
         return false;
     }
@@ -103,6 +102,39 @@ public class AccessProvider implements IAccessProvider{
     }
 
     /********** tools *****************************/
+    public boolean hasAccessFromParents(String resourceId, String requesterId, Permissions permission) throws CustomException {
+        groupsAlreadyVisited.clear();
+        groupsAlreadyVisited.add(requesterId);
+        return walkThroughParents(resourceId, requesterId, permission);
+    }
+
+    private boolean walkThroughParents(String resourceId, String requesterId, Permissions permission) throws CustomException {
+        // test access exist directly
+        Access access = getAccess(resourceId, requesterId);
+        if(access!=null && permission.isIn(access.getPermission()))
+            return true;
+        // else pass to parents
+        List<GroupMembership> userGroupList = groupProvider.getEnabledMembershipForMemberId(requesterId); // get only enabled ones
+        if(userGroupList!=null && !userGroupList.isEmpty()){
+            List<String> groupIds = userGroupList
+                    .stream()
+                    .map(GroupMembership::getGroupId)
+                    .distinct()
+                    .collect(Collectors.toList());
+            for(String groupId : groupIds){
+                if(groupsAlreadyVisited.contains(groupId)){
+                    throw new CustomException(ACCESS_LOOP_DETECTED, groupId, requesterId);
+                }
+                groupsAlreadyVisited.add(groupId);
+                boolean hasAccess = walkThroughParents(resourceId, groupId, permission);
+                if(hasAccess){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public Access getAccess(String resourceId, String requesterId){
         Access access = accessCache.get(resourceId, (acc)-> requesterId.equals(acc.getRequesterId()));
         if(access==null){
@@ -113,7 +145,7 @@ public class AccessProvider implements IAccessProvider{
     }
 
     public void updateCache(String resourceId, String requesterId, Access access){
-        Access updatedAccess = accessCache.update(resourceId, access, acc-> requesterId.equals(acc.getRequesterId()));
+        accessCache.update(resourceId, access, acc-> requesterId.equals(acc.getRequesterId()));
     }
 
     public void removeFromCache(String resourceId, String requesterId){

@@ -21,4 +21,6 @@ public interface IGroupService {
     boolean removeMemberFromGroup(String adminId, String memberId, String groupId) throws CustomException;
 
     List<Group> getGroupsToBellow(String memberId);
+
+    List<GroupMembership> getAllMembersOfGroup(String userId, String groupId);
 }

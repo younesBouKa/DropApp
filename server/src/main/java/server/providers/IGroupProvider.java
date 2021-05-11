@@ -16,7 +16,9 @@ public interface IGroupProvider {
 
     List<Group> getAllGroupsByMemberId(String memberId);
 
-    List<GroupMembership> getEnabledGroupsForMemberId(String memberId);
+    List<GroupMembership> getAllMembersOf(String groupId);
+
+    List<GroupMembership> getEnabledMembershipForMemberId(String memberId);
 
     boolean deleteGroupById(String adminId, String groupId) throws CustomException;
 

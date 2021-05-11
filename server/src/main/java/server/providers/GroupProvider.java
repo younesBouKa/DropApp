@@ -8,7 +8,9 @@ import server.exceptions.CustomException;
 import server.repositories.IGroupRepo;
 import server.repositories.IUserGroupRepo;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static server.exceptions.Message.*;
@@ -20,6 +22,7 @@ public class GroupProvider implements IGroupProvider{
     IGroupRepo groupRepo;
     @Autowired
     IUserGroupRepo userGroupRepo;
+    private final Set<String> groupsAlreadyVisited = new HashSet<>();
 
     @Override
     public Group insertGroup(String adminId, Group group) {
@@ -52,13 +55,18 @@ public class GroupProvider implements IGroupProvider{
     }
 
     @Override
-    public List<GroupMembership> getEnabledGroupsForMemberId(String memberId) {
+    public List<GroupMembership> getAllMembersOf(String groupId) {
+        return userGroupRepo.findByGroupId(groupId);
+    }
+
+    @Override
+    public List<GroupMembership> getEnabledMembershipForMemberId(String memberId) {
         return userGroupRepo.findByMemberIdAndEnable(memberId, true);
     }
 
     @Override
     public boolean deleteGroupById(String adminId, String groupId) throws CustomException {
-        Group foundedGroup = groupRepo.findById(groupId).orElseThrow(()->new CustomException(GROUP_NOT_FOUND, groupId));
+        groupRepo.findById(groupId).orElseThrow(()->new CustomException(GROUP_NOT_FOUND, groupId));
         if(isNotAdminInGroup(adminId, groupId))
             throw new CustomException(NOT_ADMIN_IN_GROUP, groupId);
         groupRepo.deleteById(groupId);
@@ -68,7 +76,7 @@ public class GroupProvider implements IGroupProvider{
 
     @Override
     public boolean removeMemberFromGroup(String userId, String memberId, String groupId) throws CustomException {
-        Group foundedGroup = groupRepo.findById(groupId).orElseThrow(()->new CustomException(GROUP_NOT_FOUND, groupId));
+        groupRepo.findById(groupId).orElseThrow(()->new CustomException(GROUP_NOT_FOUND, groupId));
         // TODO user can remove himself from group AND admin in group can remove anyone
         if(!userId.equals(memberId) && isNotAdminInGroup(userId, groupId))
             throw new CustomException(NOT_ADMIN_IN_GROUP, groupId);
@@ -83,13 +91,15 @@ public class GroupProvider implements IGroupProvider{
     public GroupMembership addMemberToGroup(String adminId, GroupMembership groupMembership) throws CustomException {
         String memberId = groupMembership.getMemberId();
         String groupId = groupMembership.getGroupId();
-        Group foundedGroup = groupRepo.findById(groupId).orElseThrow(()->new CustomException(GROUP_NOT_FOUND, groupId));
+        groupRepo.findById(groupId).orElseThrow(()->new CustomException(GROUP_NOT_FOUND, groupId));
+        if(memberId.equals(groupId))
+            throw new CustomException(GROUP_CANT_BE_MEMBER_OF_ITSELF, groupId);
         if(isNotAdminInGroup(adminId, groupId))
             throw new CustomException(NOT_ADMIN_IN_GROUP, groupId);
-        // detect loop
-        boolean loopDetected = loopDetected(groupId, memberId);
+        boolean loopDetected = isMembershipLoopDetected(groupId, memberId);
         if(loopDetected)
             throw new CustomException(GROUPS_MEMBERSHIP_LOOP, groupId, memberId);
+        // create a new membership or update if already exists
         GroupMembership foundedMembership = userGroupRepo.findByGroupIdAndMemberId(groupId, memberId);
         if(foundedMembership!=null && foundedMembership.isEnable())// exist and enable
             return foundedMembership;
@@ -102,19 +112,29 @@ public class GroupProvider implements IGroupProvider{
     }
 
     /********** tools *********************************/
-    public boolean loopDetected(String groupId, String memberId){
-        boolean memberIsGroupAlso = groupRepo.existsById(memberId);
-        if(memberIsGroupAlso){
-            GroupMembership groupMembership = userGroupRepo.findByGroupIdAndMemberId(memberId, groupId);
-            if(groupMembership!=null)
+    public boolean isMembershipLoopDetected(String groupId, String memberId) throws CustomException {
+        groupsAlreadyVisited.clear();
+        groupsAlreadyVisited.add(groupId);
+        groupsAlreadyVisited.add(memberId);
+        return walkThroughParents(groupId, memberId);
+    }
+
+    private boolean walkThroughParents(String groupId, String memberId){
+        // test if reverse relation exists
+        GroupMembership byGroupIdAndMemberId = userGroupRepo.findByGroupIdAndMemberId(memberId, groupId);
+        if(byGroupIdAndMemberId!=null){
+            return true;
+        }
+        // else pass to parents
+        List<GroupMembership> groupList = userGroupRepo.findByMemberId(groupId); // get also disabled membership
+        for(GroupMembership membership : groupList){
+            if(groupsAlreadyVisited.contains(groupId)){
                 return true;
-            else{
-                List<GroupMembership> groupList = userGroupRepo.findByMemberId(groupId);
-                return groupList
-                        .stream()
-                        .map(elt-> loopDetected(elt.getGroupId(),memberId))
-                        .reduce(false, (acc,curr)-> acc|| curr);
             }
+            groupsAlreadyVisited.add(membership.getGroupId());
+            boolean loopDetected = walkThroughParents(membership.getGroupId(), groupId);
+            if(loopDetected)
+                return true;
         }
         return false;
     }

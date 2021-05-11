@@ -33,13 +33,19 @@ public class GroupController {
         return groupService.getGroupsToBellow(currentUser().getId());
     }
 
+    @GetMapping("/{groupId}")
+    public List<GroupMembership> listGroupMembers(@PathVariable(name = "groupId") String groupId) throws CustomException {
+        return groupService.getAllMembersOfGroup(currentUser().getId(), groupId);
+    }
+
     @PostMapping
     public Group addGroup(@RequestBody GroupDotIn groupDotIn) throws CustomException {
         return groupService.addGroup(currentUser().getId(), groupDotIn);
     }
 
     @PutMapping("/{groupId}")
-    public Group updateGroup(@PathVariable(name = "groupId") String groupId , @RequestBody GroupDotIn groupDotIn) throws CustomException {
+    public Group updateGroup(@PathVariable(name = "groupId") String groupId ,
+                             @RequestBody GroupDotIn groupDotIn) throws CustomException {
         return groupService.updateGroup(currentUser().getId(), groupId, groupDotIn);
     }
 
@@ -49,13 +55,15 @@ public class GroupController {
     }
 
     @PostMapping("/{groupId}/addMember")
-    public GroupMembership addMemberToGroup(@PathVariable(name = "groupId") String groupId ,@RequestBody MembershipDotIn membershipDotIn) throws CustomException {
+    public GroupMembership addMemberToGroup(@PathVariable(name = "groupId") String groupId ,
+                                            @RequestBody MembershipDotIn membershipDotIn) throws CustomException {
         membershipDotIn.setGroupId(groupId);
         return groupService.addMemberToGroup(currentUser().getId(), membershipDotIn);
     }
 
     @DeleteMapping("/{groupId}/{memberId}")
-    public boolean removeMemberFromGroup(@PathVariable(name = "groupId") String groupId, @PathVariable(name = "memberId") String memberId ) throws CustomException {
+    public boolean removeMemberFromGroup(@PathVariable(name = "groupId") String groupId,
+                                         @PathVariable(name = "memberId") String memberId ) throws CustomException {
         return groupService.removeMemberFromGroup(currentUser().getId(), memberId, groupId);
     }
     /***** tools *******************************/

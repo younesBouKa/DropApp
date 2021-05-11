@@ -55,4 +55,10 @@ public class GroupService implements IGroupService{
     public List<Group> getGroupsToBellow(String userId) {
         return groupProvider.getAllGroupsByMemberId(userId);
     }
+
+    @Override
+    public List<GroupMembership> getAllMembersOfGroup(String userId, String groupId) {
+        // TODO perhaps adding some control here
+        return groupProvider.getAllMembersOf(groupId);
+    }
 }

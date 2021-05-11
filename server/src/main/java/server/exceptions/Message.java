@@ -52,6 +52,8 @@ public enum Message {
     // file content
     INDEX_OUT_OF_BOUND("Index out of bound '%d' length '%d'"),
     // groups
+    GROUP_CANT_BE_MEMBER_OF_ITSELF("Group can't be member of itself '%s'"),
+    ACCESS_LOOP_DETECTED("Loop is detected in access heritage '%s' and '%s'"),
     GROUPS_MEMBERSHIP_LOOP("Loop is detected between groups '%s' and '%s'"),
     GROUP_NOT_FOUND("Group '%s' not found"),
     MEMBERSHIP_NOT_FOUND("Membership with groupId '%s' and memberId '%s' not found"),
