@@ -133,6 +133,7 @@ public class NodeService implements INodeService{
         path.add(nodeWebRequest.getName());
         nodeWebRequest.setPath(path);
         Node node = NodeWebRequest.toNode(nodeWebRequest);
+        node.setOwnerId(user.getId());
         // fix name
         node = fixNameConflict(node, user);
         // save file
@@ -230,6 +231,7 @@ public class NodeService implements INodeService{
         Node node = getNodeFromPath(user, nodeFtpRequest.getPath(), true);
         if(node != null){
             NodeFtpRequest.updateNodeWith(node, nodeFtpRequest);
+            node.setOwnerId(user.getId());
             //node = fixNameConflict(node);
             // save file
             String fileId = saveFile(node, nodeFtpRequest.getContent());
