@@ -220,4 +220,12 @@ public class Node implements Serializable {
     public void setOwnerId(String ownerId) {
         this.ownerId = ownerId;
     }
+
+    public boolean isFile(){
+        return NodeType.FILE.equals(getType());
+    }
+
+    public boolean isFolder(){
+        return NodeType.FOLDER.equals(getType());
+    }
 }

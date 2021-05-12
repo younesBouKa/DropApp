@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import server.data.FileVersion;
 import server.data.IUser;
 import server.data.NodeType;
+import server.dot.ZipDotIn;
 import server.exceptions.CustomException;
 import server.data.Node;
 import server.models.NodeFtpRequest;
@@ -71,6 +72,18 @@ public class NodeService implements INodeService{
     }
 
     @Override
+    public Node getNodeByIdAndOptions(IUser user, String nodeId, boolean addParent, boolean addChildren, boolean addContent) throws CustomException {
+        Node node = nodeProvider.getNodeById(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId));
+        if(addParent)
+            addParent(node,user);
+        if(addChildren)
+            addChildren(node, user);
+        if(addContent)
+            addContentWithFail(node);
+        return node;
+    }
+
+    @Override
     public Node getNodeWithContent(IUser user, String nodeId) throws CustomException {
         Node node = nodeProvider.getNodeById(nodeId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_ID,nodeId));
         return addContentWithFail(node);
@@ -83,7 +96,41 @@ public class NodeService implements INodeService{
     }
 
     @Override
-    public Node createZipNode(IUser user, ZipRequest zipRequest) throws CustomException {
+    public Node getZippedNodes(IUser user, ZipDotIn zipDotIn) throws CustomException {
+        ZipRequest zipRequest = zipDotIn.toZipRequest();
+        String parentId = zipRequest.getParentId();
+        // if parent exist update path of node
+        Node parentNode = null;
+        List<String> path = new ArrayList<>();
+        if(parentId != null){
+            parentNode = nodeProvider.getNodeById(parentId, user.getId()).orElseThrow(()->new CustomException(NO_NODE_WITH_GIVEN_PARENT_ID,parentId));
+            zipRequest.setParentId(parentId);
+            path = parentNode.getPath();
+        }
+        path.add(zipRequest.getName());
+        // creating zip file
+        File zipFile = zipNodesByIds(user, zipRequest.getNodesId(), zipRequest.getName());
+        // add zip file to zip request in order to make some operation for us
+        // like file size and contentType, ...
+        zipRequest.updateWithFile(zipFile);
+        // creating node
+        Node zipNode = new Node(zipRequest.getName(), user.getId(), parentId, path);
+        zipNode.setType(NodeType.FILE);
+        zipNode.getFields().putAll(zipRequest.getFields());
+        zipNode.setContent(new ByteArrayInputStream(zipRequest.getContent()));
+        // adding file version
+        String contentHash = HashTool.hash(zipRequest.getContent());
+        FileVersion fileVersion = new FileVersion(null, user.getId(),
+                zipRequest.getName(), zipRequest.getFileSize(),
+                zipRequest.getContentType(), zipRequest.getExtension(),
+                zipRequest.getFields(), contentHash).hashVersion();
+        zipNode.setCurrentFileVersion(fileVersion);
+        return zipNode;
+    }
+
+    @Override
+    public Node createZipNode(IUser user, ZipDotIn zipDotIn) throws CustomException {
+        ZipRequest zipRequest = zipDotIn.toZipRequest();
         String parentId = zipRequest.getParentId();
         // if parent exist update path of node
         Node parentNode = null;
@@ -118,6 +165,58 @@ public class NodeService implements INodeService{
        // saving node
         zipNode = nodeProvider.insertNode(user.getId(), zipNode);
         return zipNode;
+    }
+
+    @Override
+    public Node copyNode(IUser user, String srcNodeId, String destNodeId, boolean andRemove) throws CustomException {
+        Node srcNode = nodeProvider.getNodeById(srcNodeId, user.getId())
+                .orElseThrow(()-> new CustomException(NO_NODE_WITH_GIVEN_ID, srcNodeId));
+        List<String> destPath = new ArrayList<>();
+        String destParentId = null;
+        boolean destNodeIsFolder = true;
+        if(destNodeId!=null){
+            Node destNode = nodeProvider.getNodeById(destNodeId, user.getId())
+                    .orElseThrow(()-> new CustomException(NO_NODE_WITH_GIVEN_ID, srcNodeId));
+            destPath = destNode.getPath();
+            destParentId = destNode.getParentId();
+            destNodeIsFolder = destNode.isFolder();
+        }
+        // folder to file
+        if(srcNode.isFolder() && !destNodeIsFolder){
+            throw new CustomException(CANT_COPY_FOLDER_TO_FILE, srcNode.getId(), destNodeId);
+        }
+        // any to folder
+        if(destNodeIsFolder){
+            srcNode.setParentId(destNodeId);
+            List<String> path = destPath;
+            path.add(srcNode.getName());
+            srcNode.setPath(path);
+        }else{// file to file
+            srcNode.setParentId(destParentId);
+            List<String> path = destPath;
+            srcNode.setPath(path);
+            nodeProvider.deleteById(destNodeId, user.getId());
+        }
+        nodeProvider.saveNode(user.getId(),srcNode);
+        if(andRemove){
+            nodeProvider.deleteById(srcNodeId, user.getId());
+        }
+        return srcNode;
+    }
+
+    @Override
+    public List<Node> copyNodes(IUser user, List<String> srcNodeIds, String destNodeId, boolean andRemove) throws CustomException {
+        List<Node> copiedNodes = new ArrayList<>();
+        for (String srcNodeId : srcNodeIds){
+            try{
+               Node copiedNode = copyNode(user, srcNodeId, destNodeId, andRemove);
+               copiedNodes.add(copiedNode);
+            }catch(Exception e){
+                logger.warn("Error while coping node {} to {} with remove {} ",srcNodeId, destNodeId, andRemove);
+                e.printStackTrace();
+            }
+        }
+        return copiedNodes;
     }
 
     @Override
@@ -421,7 +520,12 @@ public class NodeService implements INodeService{
         if(node.getParentId()==null)
             return node;
         Node parent = nodeProvider.getNodeById(node.getParentId(), user.getId()).orElse(null);
-        node.setParent(parent);
+        if(parent!=null){
+            List<String> path = parent.getPath();
+            path.add(node.getName());
+            node.setPath(path);
+            node.setParent(parent);
+        }
         return node;
     }
 

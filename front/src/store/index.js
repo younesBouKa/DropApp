@@ -60,6 +60,9 @@ export default new Vuex.Store({
         },
         getNodesInClipBoard : (state, getters) => {
             return state.clipBoardNodes;
+        },
+        getClipBoardAction : (state, getters) => {
+            return state.clipBoardOperation;
         }
     },
     mutations: {
@@ -211,7 +214,7 @@ export default new Vuex.Store({
             query = query ? query : {};
             let options = {
                 headers : {
-                    "x-chunk-start-pos" : query.startPos | 0
+                    "x-chunk-start-pos" : query.startPos || 0
                 }
             };
             let formData = new FormData();
@@ -271,11 +274,11 @@ export default new Vuex.Store({
         getNodesByParentIdAndQuery({state, getters, commit, dispatch}, parentId, query) {
             query = query ? query : {};
             let queryObj = {
-                search : query.search| "",
-                page : query.page | 0,
-                size : query.size | 10,
-                sortDirection : query.sortDirection | "DESC",
-                sortField : query.sortField | "creationDate",
+                search : query.search || "",
+                page : query.page || 0,
+                size : query.size || 10,
+                sortDirection : query.sortDirection || "DESC",
+                sortField : query.sortField || "creationDate",
             }
             return new Promise((resolve, reject) => {
                 api.getData(
@@ -293,30 +296,108 @@ export default new Vuex.Store({
                 )
             })
         },
-        compressedNodes({state, getters, commit, dispatch}, compressInfo) {
+
+        copyNodesFromStore({state, getters, commit, dispatch}, destId) {
+            let nodeIds = (state.clipBoardNodes||[]).map(elt=> elt.id);
+            let remove = state.clipBoardOperation === "CUT";
+            let inf = {
+                nodeIds : nodeIds,
+                remove : remove,
+                destId : destId
+            }
+            return dispatch("copyNodes",nodeIds, inf);
+        },
+        copyNodes({state, getters, commit, dispatch}, payload) {
+            let nodeIds = payload.nodeIds,
+                remove = payload.remove,
+                destId = payload.destId;
             return new Promise((resolve, reject) => {
                 api.postData(
-                    NODE_API_PATH + "compress",
-                    compressInfo,
+                    NODE_API_PATH + "copy/"+destId+"?romove="+remove,
+                    nodeIds,
                     {},
                     (response) => {
-                        console.log("compressedNodes",response);
+                        console.log("copyNodes",response);
                         resolve(response);
                     },
                     (error) => {
-                        console.error("compressedNodes",error);
+                        console.error("copyNodes",error);
                         reject(error);
                     }
+                )
+            })
+        },
+
+        createZipNode({state, getters, commit, dispatch}, compressInfo) {
+            compressInfo = compressInfo ? compressInfo : {};
+            let zipDot = {
+                name: compressInfo.name || undefined ,
+                description : compressInfo.description || "",
+                label : compressInfo.label || "",
+                parentId: compressInfo.parentId || undefined,
+                nodesId : compressInfo.nodesId || [], // array
+                fields: compressInfo.fields || {}, // object
+            }
+            return new Promise((resolve, reject) => {
+                api.postData(
+                    NODE_API_PATH + "zip/create",
+                    zipDot,
+                    {},
+                    (response) => {
+                        console.log("createZipNode",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("createZipNode",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        getZippedNodes({state, getters, commit, dispatch}, compressInfo) {
+            compressInfo = compressInfo ? compressInfo : {};
+            let zipDot = {
+                name: compressInfo.name || undefined ,
+                description : compressInfo.description || "",
+                label : compressInfo.label || "",
+                parentId: compressInfo.parentId || undefined,
+                nodesId : compressInfo.nodesId || [], // array
+                fields: compressInfo.fields || {}, // object
+            }
+            return new Promise((resolve, reject) => {
+                api.postData(
+                    NODE_API_PATH + "zip",
+                    zipDot,
+                    {},
+                    (response) => {
+                        console.log("getZippedNodes",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("getZippedNodes",error);
+                        reject(error);
+                    },
+                    true
                 )
             })
         },
         streamNodeContent({state, getters, commit, dispatch}, nodeId, query) {
             query = query ? query : {};
             return new Promise((resolve, reject) => {
+                // <day-name>, <jour> <mois> <année> <heure>:<minute>:<seconde> GMT
+                let formatDate = function(date){
+                    let dayStrArray=['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    let monthStrArray=['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    let dayInWeek = date.getDay();
+                    let dayStr = dayStrArray[dayInWeek];
+                    let monthStr = monthStrArray[date.getMonth()];
+                    return `${dayStr}, ${date.getDate()} ${monthStr} ${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()} GMT`;
+                }
+                let ifRange = formatDate(new Date()); // Wed, 21 Oct 2015 07:28:00 GMT
                 let options = {
                     headers : {
-                        "if-range" : query["if-range"] | new Date().toISOString(),
-                        "range": query.range | "bytes=0-", //bytes=200-1000
+                        "if-range" : query["if-range"] || ifRange,
+                        "range": query.range || "bytes=0-", //bytes=200-1000
                     }
                 };
                 api.getData(
@@ -325,10 +406,7 @@ export default new Vuex.Store({
                     options,
                     (responseWrapper) => {
                         console.log("streamNodeContent",responseWrapper);
-                        resolve({
-                            data: responseWrapper.getData(),
-                            contentType: responseWrapper.getContentType(),
-                        });
+                        resolve(responseWrapper);
                     },
                     (error) => {
                         console.error("streamNodeContent",error);

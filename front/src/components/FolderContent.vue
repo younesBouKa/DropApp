@@ -127,15 +127,7 @@
                 let rows = this.data;
                 // build permissions
                 rows = rows.map(node => {
-                    if (typeof node.permission === "string") {
-                        let permissions = node.permission.split("_");
-                        node.permission = [];
-                        permissions.forEach(per => {
-                            per = per.toLowerCase();
-                            per = per === "" ? "none" : per;
-                            node.permission.push(this.permissionsOptions[per]);
-                        })
-                    }
+                    node.permission = this.permissionsOptions[0]; // TODO
                     return node;
                 });
                 // sort
@@ -169,6 +161,9 @@
             },
             nodesInClipBoard(){
               return this.$store.getters.getNodesInClipBoard;
+            },
+            clipBoardAction(){
+              return this.$store.getters.getClipBoardAction;
             },
             nodesAreInClipBoard(){
                 return this.nodesInClipBoard && this.nodesInClipBoard.length>0;
@@ -295,7 +290,7 @@
                 })
                     .then(yes=>{
                         let nodesId = self.selectedNodes.map(elt=> elt.id);
-                        self.$store.dispatch("deleteNodesById",{nodesId, recursive:true})
+                        self.$store.dispatch("deleteNodesById",nodesId, true)
                             .then(ids=>{
                                 console.log("deleteNodesById",ids);
                                 if(ids.length>0){
@@ -330,21 +325,49 @@
             },
             pasteNodes(){
                 console.log("pasteNodes : ");
-                this.$store.dispatch("pasteNodesIn",this.currentNodeData)
-                    .then(response=>{
-                        this.$message({
-                            message: `'${response.name}' collé avec succes`,
-                            type: 'success'
-                        });
-                        this.loadFolderContent();
-                    })
-                    .catch(error=>{
-                        console.error(error);
-                        this.$message({
-                            message: error,
-                            type: 'error'
-                        });
+                let nodeIds = this.nodesInClipBoard.map(elt=>elt.id);
+                let destNodeId = this.currentNodeData.id;
+                let remove = this.clipBoardAction==="CUT";
+                let self = this;
+                let actionName = remove ? "deplacer" : "copier"
+                if(nodeIds.length===0)
+                    return;
+                this.$confirm(`Voulez vous ${actionName} '${this.nodesInClipBoard.map(elt=>elt.name).join(",")}' nodes vers ${this.currentNodeData.name} ?`,'Warning', {
+                    confirmButtonText: 'OK',
+                    cancelButtonText: 'Annuler',
+                    type: 'warning'
+                })
+                    .then(yes=>{
+                        let payload = {
+                            nodeIds : nodeIds,
+                            remove : remove,
+                            destId : destNodeId
+                        }
+                        self.$store.dispatch("copyNodes",payload)
+                            .then(response=>{// TODO response contains nodes objects
+                                if(response.length>0){
+                                    let modifiedNodes = response.map(elt => elt.name);
+                                    self.$message({
+                                        message: `'${modifiedNodes.join(",")}' ${actionName} avec succes`,
+                                        type: 'success'
+                                    });
+                                }else{
+                                    self.$message({
+                                        message: `'Erreur`,
+                                        type: 'warning'
+                                    });
+                                }
+                                self.loadFolderContent();
+                            })
+                            .catch(error=>{
+                                console.error(error);
+                                self.$message({
+                                    message: error,
+                                    type: 'error'
+                                });
+                            });
                     });
+
             },
             shareNode(){
                 console.log("share node: ", this.selectedNodes);
@@ -362,7 +385,9 @@
                     this.$store.dispatch("streamNodeContent", node.id)
                         .then(responseWrapper=>{
                             console.log(responseWrapper);
-                            this.startDownloading(responseWrapper.getData(),responseWrapper.getContentType(),this.selectedNodes[0].name);
+                            let data = responseWrapper.getBody();
+                            let contentType = responseWrapper.getContentType();
+                            this.startDownloading(data,contentType,this.selectedNodes[0].name);
                         })
                         .catch(error=>{
                             console.error(error);
@@ -375,12 +400,12 @@
                 // if many nodes are selected (files or folders)
                 else{
                     let request = {
-                        nodeIds : this.selectedNodes.map(elt=>elt.id),
+                        nodesId : this.selectedNodes.map(elt=>elt.id),
                         name : "compress.zip"
                     }
-                    this.$store.dispatch("compressedNodes",request)
+                    this.$store.dispatch("getZippedNodes",request)
                         .then(responseWrapper=>{
-                            let data = responseWrapper.getData();
+                            let data = responseWrapper.getBody();
                             let contentType = responseWrapper.getContentType();
                             //console.log(response);
                             setTimeout(()=>{

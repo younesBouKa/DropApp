@@ -10,6 +10,7 @@ import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import server.data.IUser;
+import server.dot.ZipDotIn;
 import server.exceptions.CustomException;
 import server.exceptions.Message;
 import server.models.NodeWebRequest;
@@ -115,10 +116,35 @@ public class NodeController {
         return nodeService.updateNode(currentUser(), nodeId, nodeWebRequest);
     }
 
-    @PostMapping(value = "/compress")
-    public Node zipNodes(@RequestBody ZipRequest zipRequest) throws CustomException {
-        logger.log(INFO, String.format("zipped nodes %s %n", zipRequest));
-        return nodeService.createZipNode(currentUser(), zipRequest);
+    @PostMapping(value = "/zip/create")
+    public Node createZipNode(@RequestBody ZipDotIn zipDotIn) throws CustomException {
+        logger.log(INFO, String.format("create Zip Node %s %n", zipDotIn));
+        return nodeService.createZipNode(currentUser(), zipDotIn);
+    }
+
+    @PostMapping(value = "/zip")
+    public void downloadZippedNodes(@RequestBody ZipDotIn zipDotIn,
+                                    HttpServletRequest request,
+                                    HttpServletResponse response) throws CustomException {
+        logger.log(INFO, String.format("download zipped nodes %s %n", zipDotIn));
+        Node node = nodeService.getZippedNodes(currentUser(), zipDotIn);
+        response.setHeader("Content-Length",String.valueOf(node.getFileSize()));
+        response.setHeader("Content-Type", node.getContentType());
+        try(OutputStream outputStream = response.getOutputStream();
+            InputStream inputStream = node.getContent()){
+            IOUtils.copyLarge(inputStream, outputStream);
+        }catch (Exception e) {
+            logger.log(SEVERE, String.format("Error while streaming zip content: %s, Error: %s %n", node.getName(), e.getMessage()));
+            throw new CustomException(e, ERROR_WHILE_STREAMING_FILE_CONTENT, node.getName());
+        }
+    }
+
+    @PostMapping(value = "/copy/{destinationNodeId}")
+    public List<Node> copyNodes(@PathVariable(required = false) String destinationNodeId,
+                          @RequestParam(required = false, defaultValue = "false") boolean remove,
+                          @RequestBody List<String> nodeIds) throws CustomException {
+        logger.log(INFO, String.format("copy nodes %s %n", nodeIds));
+        return nodeService.copyNodes(currentUser(), nodeIds, destinationNodeId, remove);
     }
 
     @DeleteMapping(path = "/{nodeId}", consumes = APPLICATION_JSON_VALUE)

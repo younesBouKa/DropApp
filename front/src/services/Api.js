@@ -22,6 +22,9 @@ const ResponseWrapper = function(response){
     this.isOk = function () {
         return _.get(this.currentResponse,"data.ok", null);
     }
+    this.getBody = function(){
+        return _.get(this.currentResponse, "data",null);
+    }
     this.getData = function(){
         return _.get(this.currentResponse, "data.data",null);
     }
@@ -78,11 +81,15 @@ const responseHandler = function (response, successCallback, errorCallback) {
     }
 }
 
-const postData = function (url, data, options, successCallback, errorCallback) {
+const postData = function (url, data, options, successCallback, errorCallback, withWrapper) {
     options = _.merge(defaultOptions, options);
     axios.post(url, data, options)
         .then(response=>{
-            responseHandler(response, successCallback, errorCallback);
+            if(withWrapper){
+                successCallback(response);
+            }else{
+                responseHandler(response, successCallback, errorCallback);
+            }
         })
         .catch(error=>{
             errorCallback("Technical error, check you're connection please!");
