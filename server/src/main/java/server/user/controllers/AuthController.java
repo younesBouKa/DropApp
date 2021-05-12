@@ -2,6 +2,7 @@ package server.user.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,7 @@ import server.user.models.SignUpRequest;
 import server.user.services.CustomUserDetails;
 import server.user.services.IUserService;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.logging.Logger;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -39,6 +41,17 @@ public class AuthController {
     @PostMapping(value = "/login",consumes = APPLICATION_JSON_VALUE)
     public JwtResponse authenticate(@RequestBody SignInRequest signInRequest) throws CustomException {
         return userService.authenticate(signInRequest);
+    }
+
+    @PostMapping(value = "/refresh",consumes = APPLICATION_JSON_VALUE)
+    public JwtResponse refreshToken(HttpServletRequest request) throws CustomException {
+        String token = request.getHeader("Authorization");
+        Assert.notNull(token,"Authorization header should not be null");
+        String prefix = "Bearer ";
+        int indexOfPrefix = token.indexOf(prefix);
+        if(indexOfPrefix!=-1)
+            token = token.substring(indexOfPrefix+prefix.length());
+        return userService.refreshToken(token);
     }
 
     /********** tools **********************/

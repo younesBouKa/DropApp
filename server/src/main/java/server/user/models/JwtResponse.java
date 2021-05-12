@@ -1,6 +1,6 @@
 package server.user.models;
 
-import server.user.data.Role;
+import server.data.IRole;
 
 import java.io.Serializable;
 import java.util.Set;
@@ -9,14 +9,16 @@ public class JwtResponse implements Serializable {
 
     private String id;
     private String token;
+    private long refreshDelayInMillis;
     private String type;
     private String username;
     private String email;
-    private Set<Role> roles;
+    private Set<IRole> roles;
 
-    public JwtResponse(String token, String id, String username, String email, Set<Role> roles) {
+    public JwtResponse(String token, long refreshDelayInMillis, String id, String username, String email, Set<IRole> roles) {
         this.id = id;
         this.token = token;
+        this.refreshDelayInMillis = refreshDelayInMillis;
         this.username = username;
         this.email = email;
         this.roles = roles;
@@ -62,11 +64,19 @@ public class JwtResponse implements Serializable {
         this.email = email;
     }
 
-    public Set<Role> getRoles() {
+    public Set<IRole> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<Role> roles) {
+    public void setRoles(Set<IRole> roles) {
         this.roles = roles;
+    }
+
+    public long getRefreshDelayInMillis() {
+        return refreshDelayInMillis;
+    }
+
+    public void setRefreshDelayInMillis(long refreshDelayInMillis) {
+        this.refreshDelayInMillis = refreshDelayInMillis;
     }
 }

@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 @RestController
-@RequestMapping("/api/v0/group")
+@RequestMapping("/api/v0/groups")
 public class GroupController {
 
     private static final Logger logger = Logger.getLogger(GroupController.class.getName());

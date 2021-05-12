@@ -31,24 +31,30 @@ public class AccessController {
         return accessService.getAccess(currentUser().getId(),resourceId);
     }
 
-    @PostMapping("/add")
-    public boolean addPermission(@RequestBody AccessDotIn accessDotIn) throws CustomException {
-        Assert.notNull(accessDotIn.getResourceId(), "Resource id can't be null");
+    @PostMapping("/{resourceId}")
+    public boolean addPermission(@PathVariable(name = "resourceId") String resourceId,
+                                 @RequestBody AccessDotIn accessDotIn) throws CustomException {
+        Assert.notNull(resourceId, "Resource id can't be null");
         Assert.notNull(accessDotIn.getRequesterId(), "Requester id can't be null");
+        accessDotIn.setResourceId(resourceId);
         return accessService.addPermission(currentUser().getId(),accessDotIn.getRequesterId(), accessDotIn.getResourceId(), accessDotIn.getPermission());
     }
 
-    @DeleteMapping("/remove")
-    public boolean removePermission(@RequestBody AccessDotIn accessDotIn) throws CustomException {
-        Assert.notNull(accessDotIn.getResourceId(), "Resource id can't be null");
+    @DeleteMapping("/{resourceId}")
+    public boolean removePermission(@PathVariable(name = "resourceId") String resourceId,
+                                    @RequestBody AccessDotIn accessDotIn) throws CustomException {
+        Assert.notNull(resourceId, "Resource id can't be null");
         Assert.notNull(accessDotIn.getRequesterId(), "Requester id can't be null");
+        accessDotIn.setResourceId(resourceId);
         return accessService.removePermission(currentUser().getId(),accessDotIn.getRequesterId(), accessDotIn.getResourceId(), accessDotIn.getPermission());
     }
 
-    @DeleteMapping("/removeAll")
-    public void removeAllPermission(@RequestBody AccessDotIn accessDotIn) throws CustomException {
-        Assert.notNull(accessDotIn.getResourceId(), "Resource id can't be null");
+    @DeleteMapping("/{resourceId}/removeAll")
+    public void removeAllPermission(@PathVariable(name = "resourceId") String resourceId,
+                                    @RequestBody AccessDotIn accessDotIn) throws CustomException {
+        Assert.notNull(resourceId, "Resource id can't be null");
         Assert.notNull(accessDotIn.getRequesterId(), "Requester id can't be null");
+        accessDotIn.setResourceId(resourceId);
         accessService.removeAllPermissions(currentUser().getId(),accessDotIn.getRequesterId(), accessDotIn.getResourceId());
     }
 

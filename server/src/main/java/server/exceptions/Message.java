@@ -48,6 +48,8 @@ public enum Message {
     // used in user security
     USERNAME_ALREADY_TAKEN("Username already taken '%s'"),
     EMAIL_ALREADY_TAKEN("Email already taken '%s'"),
+    NO_USER_WITH_TOKEN_ID("User id in refresh token request is invalid "),
+    TOKEN_IN_REFRESH_REQUEST_INVALID("Token in refresh request is invalid or expired "),
 
     // file content
     INDEX_OUT_OF_BOUND("Index out of bound '%d' length '%d'"),

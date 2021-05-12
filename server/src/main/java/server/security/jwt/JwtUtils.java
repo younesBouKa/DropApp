@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import server.data.IUser;
 import server.user.services.CustomUserDetails;
 import org.springframework.security.core.Authentication;
 
@@ -31,6 +32,23 @@ public class JwtUtils {
         privateClaims.put("eml",userPrincipal.getEmail());
         privateClaims.put("hdr",userPrincipal.getHomeDirectory());
         return Jwts.builder()
+                .setId(userPrincipal.getId())
+                .setSubject((userPrincipal.getUsername()))
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMinute*60*1000))
+                .addClaims(privateClaims)
+                .signWith(SignatureAlgorithm.HS512, jwtSecret)
+                .compact();
+    }
+
+    public String generateJwtToken(IUser userPrincipal) {
+        Map<String, Object> privateClaims = new HashMap<>();
+        privateClaims.put("uid",userPrincipal.getId());
+        privateClaims.put("usr",userPrincipal.getUsername());
+        privateClaims.put("eml",userPrincipal.getEmail());
+        privateClaims.put("hdr",userPrincipal.getHomeDirectory());
+        return Jwts.builder()
+                .setId(userPrincipal.getId())
                 .setSubject((userPrincipal.getUsername()))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMinute*60*1000))
@@ -41,6 +59,10 @@ public class JwtUtils {
 
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody().getSubject();
+    }
+
+    public String getUserIdFromJwtToken(String token) {
+        return Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody().getId();
     }
 
     public boolean validateJwtToken(String authToken) {
@@ -60,5 +82,21 @@ public class JwtUtils {
         }
 
         return false;
+    }
+
+    public String getJwtSecret() {
+        return jwtSecret;
+    }
+
+    public void setJwtSecret(String jwtSecret) {
+        this.jwtSecret = jwtSecret;
+    }
+
+    public int getJwtExpirationMinute() {
+        return jwtExpirationMinute;
+    }
+
+    public void setJwtExpirationMinute(int jwtExpirationMinute) {
+        this.jwtExpirationMinute = jwtExpirationMinute;
     }
 }

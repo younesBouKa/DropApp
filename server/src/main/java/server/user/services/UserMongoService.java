@@ -23,8 +23,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static server.exceptions.Message.EMAIL_ALREADY_TAKEN;
-import static server.exceptions.Message.USERNAME_ALREADY_TAKEN;
+import static server.exceptions.Message.*;
 
 @Service
 public class UserMongoService implements IUserService {
@@ -90,16 +89,33 @@ public class UserMongoService implements IUserService {
         String jwt = jwtUtils.generateJwtToken(authentication);
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        Set<Role> roles = userDetails.getAuthorities().stream()
+        Set<IRole> roles = userDetails.getAuthorities().stream()
                 .map(item -> roleRepo.findByName(item.getAuthority()))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-
+        long refreshInMillis = jwtUtils.getJwtExpirationMinute() * 60 * 1000;
         return new JwtResponse(jwt,
+                refreshInMillis,
                 userDetails.getId(),
                 userDetails.getUsername(),
                 userDetails.getEmail(),
                 roles);
+    }
+
+    @Override
+    public JwtResponse refreshToken(String token) throws CustomException {
+        if(!jwtUtils.validateJwtToken(token))
+            throw new CustomException(TOKEN_IN_REFRESH_REQUEST_INVALID);
+        String userId = jwtUtils.getUserIdFromJwtToken(token);
+        IUser user = userRepo.findById(userId).orElseThrow(()->new CustomException(NO_USER_WITH_TOKEN_ID));
+        String jwt = jwtUtils.generateJwtToken(user);
+        long refreshInMillis = jwtUtils.getJwtExpirationMinute() * 60 * 1000;
+        return new JwtResponse(jwt,
+                refreshInMillis,
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRoles());
     }
 
     @Override

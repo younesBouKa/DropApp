@@ -11,6 +11,7 @@ import java.util.List;
 public interface IUserService {
 
     JwtResponse authenticate(SignInRequest signInRequest);
+    JwtResponse refreshToken(String token) throws CustomException;
     IUser registerUser(SignUpRequest signUpRequest) throws CustomException;
     IUser saveUser(IUser user);
     IUser getUserByUsername(String name);

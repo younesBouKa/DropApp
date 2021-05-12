@@ -76,17 +76,7 @@ public class NodeController {
     @PostMapping
     public Node saveRootNode(@RequestPart(value = "file", required = false) MultipartFile file,
                              @RequestParam(value = "nodeInfo") String nodeInfo) throws CustomException {
-        NodeWebRequest node;
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            node = mapper.readValue(nodeInfo, NodeWebRequest.class);
-        } catch (JsonProcessingException e) {
-            throw new CustomException(e, Message.ERROR_WHILE_PARSING_NODE_INFO, nodeInfo);
-        }
-        if(file!=null){
-            node.updateWithFile(file);
-        }
-        return nodeService.insertNode(currentUser(), node);
+        return saveNode(null,file,nodeInfo);
     }
 
     @PostMapping("/{parentId}")
@@ -109,7 +99,7 @@ public class NodeController {
     public Node updateNode(@PathVariable String nodeId,
                            @RequestPart(value = "file", required = false) MultipartFile file,
                            @RequestPart(value = "chunk", required = false) String chunk,
-                           @RequestParam(value = "nodeInfo") String nodeInfo,
+                           @RequestPart(value = "nodeInfo") String nodeInfo,
                            HttpServletRequest request) throws CustomException {
         NodeWebRequest nodeWebRequest ;
         ObjectMapper mapper = new ObjectMapper();
