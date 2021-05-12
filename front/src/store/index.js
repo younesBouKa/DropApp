@@ -5,8 +5,9 @@ import api from '../services/Api';
 const _ = require('lodash');
 Vue.use(Vuex)
 
-const FILE_API_PATH = "/api/file/"
-const NODE_API_PATH = "/api/node/"
+const NODE_API_PATH = "/api/v0/nodes/"
+const GROUP_API_PATH = "/api/v0/groups/"
+const ACCESS_API_PATH = "/api/v0/access/"
 
 export default new Vuex.Store({
     state: {
@@ -62,6 +63,10 @@ export default new Vuex.Store({
         }
     },
     mutations: {
+        setUser(state, data) {
+            console.log("mutation [setUser] ",data);
+            state.user = data ;
+        },
         storeCurrentNodeData(state, data) {
             console.log("mutation [storeCurrentNodeData] ",data);
             state.currentNodeData = data ;
@@ -92,6 +97,38 @@ export default new Vuex.Store({
         },
     },
     actions: {
+        login({state, getters, commit, dispatch}, data) {
+            return new Promise((resolve, reject) => {
+                api.login(
+                    data.username,
+                    data.password,
+                    (response) => {
+                        console.log("login with success",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("login failled ",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        register({state, getters, commit, dispatch}, data) {
+            return new Promise((resolve, reject) => {
+                api.register(
+                    data,
+                    (response) => {
+                        console.log("register with success",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("register failled ",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+
         storeRootElement({state, getters, commit, dispatch}, root) {
             return new Promise((resolve, reject) => {
                 try {
@@ -133,175 +170,35 @@ export default new Vuex.Store({
             });
         },
 
-        pasteNodesIn({state, getters, commit, dispatch}, destNode) {
-            return new Promise((resolve, reject) => {
-                try {
-                    destNode = destNode ? destNode : getters.getCurrentNodeData;
-                    if(state.clipBoardNodes.length===0)
-                      reject("no node was selected");
-                    if(!destNode || !destNode.id)
-                      reject("destination node is invalid");
-
-                    let operation = state.clipBoardOperation==="CUT" ? "copyNodeById" : (state.clipBoardOperation==="COPY" ? "moveNodeById" : undefined);
-                    if(!operation)
-                        reject("operation undefined");
-                    let srcId= state.clipBoardNodes[0].id,destId = destNode.id;
-                    dispatch(operation,  {srcId,destId})
-                        .then(response=> resolve(response))
-                        .catch(error=> reject(error));
-                }catch(error){
-                    reject(error);
-                }
-            });
-        },
-
-        getNodeById({state, getters, commit, dispatch}, nodeId) {
+        createNode({state, getters, commit, dispatch}, parentId,nodeInfo, file) {
+            let formData = new FormData();
+            formData.append("file",file);
+            formData.append("nodeInfo",nodeInfo);
             return new Promise((resolve, reject) => {
                 api.postData(
-                    NODE_API_PATH + "getNodeById",
-                    {nodeId},
+                    NODE_API_PATH + "/"+parentId,
+                    formData,
                     {},
                     (response) => {
-                        console.log("getNodeById",response);
-                        resolve(response.data);
+                        console.log("createNode",response);
+                        resolve(response);
                     },
                     (error) => {
-                        console.error("getNodeById",error);
+                        console.error("createNode",error);
                         reject(error);
                     }
                 )
             })
         },
-        getNodeInfoById({state, getters, commit, dispatch}, nodeId) {
+        deleteNodeById({state, getters, commit, dispatch}, nodeId) {
             return new Promise((resolve, reject) => {
-                api.getData(
-                    NODE_API_PATH + "getNodeInfoById/"+nodeId,
-                    undefined,
+                api.deleteData(
+                    NODE_API_PATH + nodeId,
                     {},
-                    (response) => {
-                        console.log("getNodeInfoById",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("getNodeInfoById",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-        getNodeByPath({state, getters, commit, dispatch}, nodePath) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "getNodeByPath",
-                    {nodePath},
-                    {},
-                    (response) => {
-                        console.log("getNodeByPath",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("getNodeByPath",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-        getNodesByParentId({state, getters, commit, dispatch}, parentId) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "getNodesByParentId",
-                    {parentId},
-                    {},
-                    (response) => {
-                        console.log("getNodesByParentId",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("getNodesByParentId",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-        getNodesByParentPath({state, getters, commit, dispatch}, parentPath) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "getNodesByParentPath",
-                    {parentPath},
-                    {},
-                    (response) => {
-                        console.log( "getNodesByParentPath",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error( "getNodesByParentPath",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-        getNodesByQuery({state, getters, commit, dispatch}, query) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "getNodesByQuery",
-                    query,
-                    {},
-                    (response) => {
-                        console.log("getNodesByQuery",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("getNodesByQuery",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-
-        createFolderNodeWithMetaData({state, getters, commit, dispatch}, metaData) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "createFolderNodeWithMetaData",
-                    metaData,
-                    {},
-                    (response) => {
-                        console.log("createFolderNodeWithMetaData",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("createFolderNodeWithMetaData",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-
-        deleteNodeByPath({state, getters, commit, dispatch}, {path, recursive}) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "deleteNodeByPath",
-                    {path, recursive},
-                    {},
-                    (response) => {
-                        console.log("deleteNodeByPath",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("deleteNodeByPath",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-        deleteNodeById({state, getters, commit, dispatch}, {nodeId, recursive}) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "deleteNodeById",
-                    {nodeId, recursive},
                     {},
                     (response) => {
                         console.log("deleteNodeById",response);
-                        resolve(response.data);
+                        resolve(response);
                     },
                     (error) => {
                         console.error("deleteNodeById",error);
@@ -310,242 +207,368 @@ export default new Vuex.Store({
                 )
             })
         },
-        deleteNodesById({state, getters, commit, dispatch}, {nodesId, recursive}) {
+        updateNode({state, getters, commit, dispatch}, nodeId, file, chunk, nodeInfo, query) {
+            query = query ? query : {};
+            let options = {
+                headers : {
+                    "x-chunk-start-pos" : query.startPos | 0
+                }
+            };
+            let formData = new FormData();
+            formData.append("file",file);
+            formData.append("nodeInfo",nodeInfo);
+            formData.append("chunk",chunk);
             return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "deleteNodesById",
-                    {nodesId, recursive},
-                    {},
-                    (response) => {
-                        console.log("deleteNodesById",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("deleteNodesById",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-
-        hasPermissionById({state, getters, commit, dispatch}, {nodeId, permission}) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "hasPermissionById",
-                    {nodeId, permission},
-                    {},
-                    (response) => {
-                        console.log("hasPermissionById",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("hasPermissionById",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-        hasPermissionByPath({state, getters, commit, dispatch}, {nodePath, permission}) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "hasPermissionByPath",
-                    {nodePath, permission},
-                    {},
-                    (response) => {
-                        console.log("hasPermissionByPath",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("hasPermissionByPath",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-
-        copyNodeByPath({state, getters, commit, dispatch}, {srcPath, destPath}) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "hasPermissionByPath",
-                    {srcPath, destPath},
-                    {},
-                    (response) => {
-                        console.log("hasPermissionByPath",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("hasPermissionByPath",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-        copyNodeById({state, getters, commit, dispatch}, {srcId, destId}) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "copyNodeById",
-                    {srcId, destId},
-                    {},
-                    (response) => {
-                        console.log("copyNodeById",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("copyNodeById",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-
-        moveNodeByPath({state, getters, commit, dispatch}, {srcPath, destPath}) {
-            return new Promise((resolve, reject) => {
-                api.postData(
-                    NODE_API_PATH + "moveNodeByPath",
-                    {srcPath, destPath},
-                    {},
-                    (response) => {
-                        console.log("moveNodeByPath",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("moveNodeByPath",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-        moveNodeById({state, getters, commit, dispatch}, {srcId, destId}) {
-            return new Promise((resolve, reject) => {
-                console.log("++++++",srcId,destId);
-                api.postData(
-                    NODE_API_PATH + "moveNodeById",
-                    {srcId, destId},
-                    {},
-                    (response) => {
-                        console.log("moveNodeById",response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error("moveNodeById",error);
-                        reject(error);
-                    }
-                )
-            })
-        },
-
-        uploadFile({state, getters, commit, dispatch}, formData) {
-            return new Promise((resolve, reject) => {
-                api.getData(
-                    FILE_API_PATH + "uploadFile",
+                api.putData(
+                    NODE_API_PATH + nodeId,
                     formData,
-                    {},
+                    options,
                     (response) => {
-                        console.log("uploadFile",response);
-                        resolve(response.data);
+                        console.log("updateNode",response);
+                        resolve(response);
                     },
                     (error) => {
-                        console.error("uploadFile",error);
+                        console.error("updateNode",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        getRootNodes({state, getters, commit, dispatch}) {
+            return new Promise((resolve, reject) => {
+                api.getData(
+                    NODE_API_PATH ,
+                    undefined,
+                    {},
+                    (response) => {
+                        console.log("getRootNodes",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("getRootNodes",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        getNodeById({state, getters, commit, dispatch}, nodeId) {
+            return new Promise((resolve, reject) => {
+                api.getData(
+                    NODE_API_PATH + nodeId,
+                    {},
+                    {},
+                    (response) => {
+                        console.log("getNodeById",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("getNodeById",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        getNodesByParentIdAndQuery({state, getters, commit, dispatch}, parentId, query) {
+            query = query ? query : {};
+            let queryObj = {
+                search : query.search| "",
+                page : query.page | 0,
+                size : query.size | 10,
+                sortDirection : query.sortDirection | "DESC",
+                sortField : query.sortField | "creationDate",
+            }
+            return new Promise((resolve, reject) => {
+                api.getData(
+                    NODE_API_PATH +parentId+"/children",
+                    queryObj,
+                    {},
+                    (response) => {
+                        console.log("getNodesByQuery",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("getNodesByQuery",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        compressedNodes({state, getters, commit, dispatch}, compressInfo) {
+            return new Promise((resolve, reject) => {
+                api.postData(
+                    NODE_API_PATH + "compress",
+                    compressInfo,
+                    {},
+                    (response) => {
+                        console.log("compressedNodes",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("compressedNodes",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        streamNodeContent({state, getters, commit, dispatch}, nodeId, query) {
+            query = query ? query : {};
+            return new Promise((resolve, reject) => {
+                let options = {
+                    headers : {
+                        "if-range" : query["if-range"] | new Date().toISOString(),
+                        "range": query.range | "bytes=0-", //bytes=200-1000
+                    }
+                };
+                api.getData(
+                    NODE_API_PATH + nodeId+"/stream",
+                    undefined,
+                    options,
+                    (responseWrapper) => {
+                        console.log("streamNodeContent",responseWrapper);
+                        resolve({
+                            data: responseWrapper.getData(),
+                            contentType: responseWrapper.getContentType(),
+                        });
+                    },
+                    (error) => {
+                        console.error("streamNodeContent",error);
+                        reject(error);
+                    },
+                    true
+                )
+            })
+        },
+
+        listOwnGroups({state, getters, commit, dispatch}) {
+            return new Promise((resolve, reject) => {
+                api.getData(
+                    GROUP_API_PATH ,
+                    {},
+                    {},
+                    (response) => {
+                        console.log("getGroups",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("getGroups",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        listGroupMembers({state, getters, commit, dispatch}, groupId) {
+            return new Promise((resolve, reject) => {
+                api.getData(
+                    GROUP_API_PATH+ groupId ,
+                    {},
+                    {},
+                    (response) => {
+                        console.log("listGroupMembers",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("listGroupMembers",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        addGroup({state, getters, commit, dispatch}, groupInfo) {
+            return new Promise((resolve, reject) => {
+                api.postData(
+                    GROUP_API_PATH ,
+                    groupInfo,
+                    {},
+                    (response) => {
+                        console.log("addGroup",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("addGroup",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        updateGroup({state, getters, commit, dispatch}, groupId, groupInfo) {
+            return new Promise((resolve, reject) => {
+                api.putData(
+                    GROUP_API_PATH+ groupId ,
+                    groupInfo,
+                    {},
+                    (response) => {
+                        console.log("addGroup",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("addGroup",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        deleteGroup({state, getters, commit, dispatch}, groupId) {
+            return new Promise((resolve, reject) => {
+                api.deleteData(
+                    GROUP_API_PATH+ groupId ,
+                    {},
+                    {},
+                    (response) => {
+                        console.log("addGroup",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("addGroup",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        addMemberToGroup({state, getters, commit, dispatch}, groupId, membershipInfo) {
+            return new Promise((resolve, reject) => {
+                api.postData(
+                    GROUP_API_PATH+ groupId+"/addMember" ,
+                    membershipInfo,
+                    {},
+                    (response) => {
+                        console.log("addGroup",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("addGroup",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        removeMemberFromGroup({state, getters, commit, dispatch}, groupId, memberId) {
+            return new Promise((resolve, reject) => {
+                api.deleteData(
+                    GROUP_API_PATH+ groupId+"/"+memberId ,
+                    {},
+                    {},
+                    (response) => {
+                        console.log("removeMemberFromGroup",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("removeMemberFromGroup",error);
                         reject(error);
                     }
                 )
             })
         },
 
-        getCompressedNodes({state, getters, commit, dispatch}, nodesId) {
+        getPermission({state, getters, commit, dispatch}, resourceId) {
+            return new Promise((resolve, reject) => {
+                api.getData(
+                    ACCESS_API_PATH+ resourceId ,
+                    {},
+                    {},
+                    (response) => {
+                        console.log("getPermission",response);
+                        resolve(response);
+                    },
+                    (error) => {
+                        console.error("getPermission",error);
+                        reject(error);
+                    }
+                )
+            })
+        },
+        generateToken({state, getters, commit, dispatch}, resourceId, accessDetails) {
+            let access = {
+                resourceId : resourceId,
+                requesterId : accessDetails.requesterId | null,
+                permission : accessDetails.permission | 0,
+                delay : accessDetails.delay | -1,
+            }
             return new Promise((resolve, reject) => {
                 api.postData(
-                    NODE_API_PATH + "getCompressedNodes",
-                    nodesId,
+                    ACCESS_API_PATH+ "generateToken" ,
+                    access,
                     {},
                     (response) => {
-                        console.log(response);
-                        resolve({
-                            contentType : response.headers["content-type"],
-                            data : response.data
-                        });
+                        console.log("generateToken",response);
+                        resolve(response);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("generateToken",error);
                         reject(error);
                     }
                 )
             })
         },
-        getCompressedFolder({state, getters, commit, dispatch}, folderId) {
+        addPermission({state, getters, commit, dispatch}, resourceId, accessDetails) {
+            let access = {
+                resourceId : resourceId,
+                requesterId : accessDetails.requesterId | null,
+                permission : accessDetails.permission | 0,
+                delay : accessDetails.delay | -1,
+            }
             return new Promise((resolve, reject) => {
-                api.getData(
-                    NODE_API_PATH + "getCompressedFolder/"+folderId,
-                    undefined,
+                api.postData(
+                    ACCESS_API_PATH+ resourceId ,
+                    access,
                     {},
                     (response) => {
-                        console.log(response);
-                        resolve({
-                            contentType : response.headers["content-type"],
-                            data : response.data
-                        });
+                        console.log("addPermission",response);
+                        resolve(response);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("addPermission",error);
                         reject(error);
                     }
                 )
             })
         },
-        streamNodeContent({state, getters, commit, dispatch}, nodeId) {
+        removePermission({state, getters, commit, dispatch}, resourceId, accessDetails) {
+            let access = {
+                resourceId : resourceId,
+                requesterId : accessDetails.requesterId | null,
+                permission : accessDetails.permission | 0,
+                delay : accessDetails.delay | -1,
+            }
             return new Promise((resolve, reject) => {
-                api.getData(
-                    NODE_API_PATH + "streamContent/"+nodeId,
-                    undefined,
+                api.deleteData(
+                    ACCESS_API_PATH+ resourceId ,
+                    access,
                     {},
                     (response) => {
-                        console.log(response);
-                        resolve({
-                            contentType : response.headers["content-type"],
-                            data : response.data
-                        });
+                        console.log("removePermission",response);
+                        resolve(response);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("removePermission",error);
                         reject(error);
                     }
                 )
             })
         },
-        streamFileContent({state, getters, commit, dispatch}, fileId) {
+        removeAllPermissions({state, getters, commit, dispatch}, resourceId, accessDetails) {
+            let access = {
+                resourceId : resourceId,
+                requesterId : accessDetails.requesterId | null,
+                permission : accessDetails.permission | 0,
+                delay : accessDetails.delay | -1,
+            }
             return new Promise((resolve, reject) => {
-                api.getData(
-                    FILE_API_PATH + "streamContent/"+fileId,
-                    undefined,
+                api.deleteData(
+                    ACCESS_API_PATH+ resourceId+"/removeAll" ,
+                    access,
                     {},
                     (response) => {
-                        console.log(response);
-                        resolve(response.data);
+                        console.log("removePermission",response);
+                        resolve(response);
                     },
                     (error) => {
-                        console.error(error);
+                        console.error("removePermission",error);
                         reject(error);
                     }
                 )
             })
         },
-        getFileInfo({state, getters, commit, dispatch}, fileId) {
-            return new Promise((resolve, reject) => {
-                api.getData(
-                    FILE_API_PATH + "getFileInfo/"+fileId,
-                    undefined,
-                    {},
-                    (response) => {
-                        console.log(response);
-                        resolve(response.data);
-                    },
-                    (error) => {
-                        console.error(error);
-                        reject(error);
-                    }
-                )
-            })
-        },
+
     },
     modules: {}
 })

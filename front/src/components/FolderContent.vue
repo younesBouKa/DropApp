@@ -158,7 +158,7 @@
                     }
                     allParents.reverse();
                 }else if(this.currentNodeData &&  this.currentNodeData.path){
-                    let paths =  this.currentNodeData.path.split("/");
+                    let paths =  this.currentNodeData.path;
                     allParents = paths.map(el=>{
                         return {
                           name : el,
@@ -251,11 +251,6 @@
             });
         },
         methods: {
-            ...mapActions({
-                getNodesByParentId: 'getNodesByParentId',
-                deleteNodesById: 'deleteNodesById',
-            }),
-
             loadFolderContent() {
                 console.log("loadFolderContent : ",this.currentNodeData);
                 this.data = [];
@@ -264,7 +259,7 @@
                     return;
                 }
 
-                this.$store.dispatch("getNodesByParentId",folderId)
+                this.$store.dispatch("getNodesByParentIdAndQuery",folderId,{})
                     .then(nodes => {
                         console.log("loadFolderContent",nodes);
                         this.data = nodes;
@@ -365,9 +360,9 @@
                 if(this.selectedNodes.length===1 && this.selectedNodes[0].file){
                     let node = this.selectedNodes[0];
                     this.$store.dispatch("streamNodeContent", node.id)
-                        .then(response=>{
-                            console.log(response);
-                            this.startDownloading(response.data,response.contentType,this.selectedNodes[0].name);
+                        .then(responseWrapper=>{
+                            console.log(responseWrapper);
+                            this.startDownloading(responseWrapper.getData(),responseWrapper.getContentType(),this.selectedNodes[0].name);
                         })
                         .catch(error=>{
                             console.error(error);
@@ -379,11 +374,17 @@
                 }
                 // if many nodes are selected (files or folders)
                 else{
-                    this.$store.dispatch("getCompressedNodes",this.selectedNodes.map(elt=>elt.id))
-                        .then(response=>{
+                    let request = {
+                        nodeIds : this.selectedNodes.map(elt=>elt.id),
+                        name : "compress.zip"
+                    }
+                    this.$store.dispatch("compressedNodes",request)
+                        .then(responseWrapper=>{
+                            let data = responseWrapper.getData();
+                            let contentType = responseWrapper.getContentType();
                             //console.log(response);
                             setTimeout(()=>{
-                                let blob = new Blob([response.data],{type:response.contentType});
+                                let blob = new Blob([data],{type:contentType});
                                 let zipFile = new JSZip();
                                 let reader = new FileReader();
                                 reader.readAsDataURL(blob);

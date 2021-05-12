@@ -73,7 +73,6 @@
             return {
                 filterText: "",
                 data: [],
-                rootFolder: {},
                 defaultProps: {
                     children: 'children',
                     label: 'name',
@@ -143,10 +142,7 @@
         },
         methods: {
             ...mapActions([
-                'getNodeByPath',
                 'deleteNodeById',
-                'getNodesByParentId',
-                'createFolderNodeWithMetaData',
             ]),
 
             openCreateFolderDialog(){
@@ -176,7 +172,7 @@
                     type: 'warning'
                 })
                     .then(yes=>{
-                        self.$store.dispatch("deleteNodeById",{nodeId: self.currentNodeData.id, recursive: true})
+                        self.$store.dispatch("deleteNodeById", self.currentNodeData.id)
                             .then(count=>{
                                 console.log("deleteCurrentNode",count);
                                 this.$message({
@@ -201,18 +197,17 @@
                 let self = this;
                 let rootPath = this.rootPath || "/";
                 return new Promise((resolve, reject) => {
-                    self.$store.dispatch("getNodeByPath",rootPath)
+                    self.$store.dispatch("getRootNodes")
                         .then(data => {
-                            console.log("getRootFolder",data);
+                            console.log("getRootNodes",data);
                             if (data) {
-                                self.rootFolder = data;
-                                self.data.push(data);
+                                self.data=data;
                                 self.$store.commit("storeCurrentNodeData", self.data[0]);
                                 self.updateRootElement();
                             }
                             resolve(data);
                         }).catch(err => {
-                            console.error("getRootFolder",err);
+                            console.error("getRootNodes",err);
                             reject(err);
                         });
                 });
@@ -242,7 +237,7 @@
                 console.log(`loadNode: `, node);
                 if(!node || !node.data || !node.data.id)
                     return;
-                this.$store.dispatch("getNodesByParentId",node.data.id)
+                this.$store.dispatch("getNodesByParentIdAndQuery",node.data.id, {})
                     .then(nodes => {
                         console.log("loadNode",nodes);
                         nodes = nodes.sort(this.sortByFolderFirst);

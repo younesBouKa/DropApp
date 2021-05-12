@@ -7,6 +7,11 @@ Vue.use(VueRouter)
 const routes = [
   {
     path: '/',
+    name: 'Sign',
+    component: () => import(/* webpackChunkName: "sign" */ '../views/Sign.vue')
+  },
+  {
+    path: '/home',
     name: 'Home',
     component: Home
   },
@@ -25,5 +30,9 @@ const router = new VueRouter({
   base: process.env.BASE_URL,
   routes
 })
+
+/*router.beforeEach((to, from, next) => {
+  console.log("router beforeEach", to, from);
+})*/
 
 export default router
